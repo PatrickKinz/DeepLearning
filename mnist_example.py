@@ -27,6 +27,8 @@ keras.utils.plot_model(model, show_shapes=True)
 x_train = x_train.reshape(60000, 784).astype("float32") / 255
 x_test = x_test.reshape(10000, 784).astype("float32") / 255
 
+x_train.shape
+
 model.compile(
     loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
     optimizer=keras.optimizers.RMSprop(),
