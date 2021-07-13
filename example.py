@@ -18,6 +18,7 @@ plt.plot(x, np.sin(x))
 
 %matplotlib inline
 %config InlineBackend.figure_format = 'svg'
+
 plt.plot(x, np.sin(x))
 import matplotlib as mpl
 mpl.style.use('ggplot')

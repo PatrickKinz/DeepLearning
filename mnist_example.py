@@ -23,13 +23,15 @@ keras.utils.plot_model(model, show_shapes=True)
 x_train = x_train.reshape(60000, 784).astype("float32") / 255
 x_test = x_test.reshape(10000, 784).astype("float32") / 255
 
+x_train.shape
+
 model.compile(
     loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
     optimizer=keras.optimizers.RMSprop(),
     metrics=["accuracy"],
 )
 
-history = model.fit(x_train, y_train, batch_size=64, epochs=2, validation_split=0.2)
+history = model.fit(x_train, y_train, batch_size=64, epochs=10, validation_split=0.2)
 
 test_scores = model.evaluate(x_test, y_test, verbose=2)
 print("Test loss:", test_scores[0])
