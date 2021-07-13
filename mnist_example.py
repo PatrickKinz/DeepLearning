@@ -4,6 +4,10 @@ import numpy as np
 from tensorflow import keras
 from tensorflow.keras import layers
 
+# Just disables the warning, doesn't take advantage of AVX/FMA to run faster
+#import os
+#os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
 inputs = keras.Input(shape=(784,))
 inputs.shape
 inputs.dtype
@@ -29,7 +33,7 @@ model.compile(
     metrics=["accuracy"],
 )
 
-history = model.fit(x_train, y_train, batch_size=64, epochs=2, validation_split=0.2)
+history = model.fit(x_train, y_train, batch_size=64, epochs=10, validation_split=0.2)
 
 test_scores = model.evaluate(x_test, y_test, verbose=2)
 print("Test loss:", test_scores[0])
