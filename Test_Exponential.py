@@ -64,9 +64,9 @@ input_layer = keras.Input(shape=(16,))
 input_layer.shape
 input_layer.dtype
 
-dense_layer_1 = layers.Dense(4, activation="relu")(input_layer)
+dense_layer_1 = layers.Dense(8, activation="relu")(input_layer)
 dense_layer_1.shape
-dense_layer_2 =layers.Dense(4,activation="relu")(dense_layer_1)
+dense_layer_2 =layers.Dense(8,activation="relu")(dense_layer_1)
 dense_layer_3a = layers.Dense(1)(dense_layer_2) # 3 outputs for S0, T2 and T2S
 dense_layer_3b = layers.Dense(1)(dense_layer_2) # 3 outputs for S0, T2 and T2S
 dense_layer_3c = layers.Dense(1)(dense_layer_2) # 3 outputs for S0, T2 and T2S
@@ -82,17 +82,22 @@ def simulateSignal_for_FID(tensor):
     return output
 
 
-def simulateSignal_for_Echo_Peak(tensor):
+def simulateSignal_for_Echo_Peak_rise(tensor):
     """x[0] = S0, x[1] = T2, x[2] = T2S   """
-    t=tf.constant([21,24,27,30,33,36,39,42,45,48], dtype=tf.float32)
+    t=tf.constant([21,24,27,30,33,36,39], dtype=tf.float32)
     S0 = tensor[0]
     T2 = tensor[1]
     T2S = tensor[2]
-    #output = tf.constant(0, shape = )
-    #for i in range(6):
-    #output = S0 * tf.math.exp(-t/T2S)
-    #for i in range(6,len(t)):
-    output = S0 * tf.math.exp(- tf.math.abs((40-t))*(tf.math.divide_no_nan(1.0,T2S) - tf.math.divide_no_nan(1.0,T2)) - tf.math.divide_no_nan(t,T2) )
+    output = S0 * tf.math.exp(- (40.0-t)*(tf.math.divide_no_nan(1.0,T2S) - tf.math.divide_no_nan(1.0,T2)) - tf.math.divide_no_nan(t,T2) )
+    return output
+
+def simulateSignal_for_Echo_Peak_fall(tensor):
+    """x[0] = S0, x[1] = T2, x[2] = T2S   """
+    t=tf.constant([42,45,48], dtype=tf.float32)
+    S0 = tensor[0]
+    T2 = tensor[1]
+    T2S = tensor[2]
+    output = S0 * tf.math.exp(- (t-40.0)*(tf.math.divide_no_nan(1.0,T2S) - tf.math.divide_no_nan(1.0,T2)) - tf.math.divide_no_nan(t,T2) )
     return output
 
 Params_Layer = layers.Concatenate()([dense_layer_3a,dense_layer_3b,dense_layer_3c])
@@ -100,9 +105,11 @@ model_params = keras.Model(inputs=input_layer,outputs=Params_Layer,name="Params_
 model_params.summary()
 keras.utils.plot_model(model_params, show_shapes=True)
 
+# %%
 FID_Layer = layers.Lambda(simulateSignal_for_FID)([dense_layer_3a,dense_layer_3c])
-Echo_Peak_layer = layers.Lambda(simulateSignal_for_Echo_Peak)([dense_layer_3a,dense_layer_3b,dense_layer_3c])
-output_layer = layers.Concatenate()([FID_Layer,Echo_Peak_layer])
+Echo_Peak_rise_layer = layers.Lambda(simulateSignal_for_Echo_Peak_rise)([dense_layer_3a,dense_layer_3b,dense_layer_3c])
+Echo_Peak_fall_layer = layers.Lambda(simulateSignal_for_Echo_Peak_fall)([dense_layer_3a,dense_layer_3b,dense_layer_3c])
+output_layer = layers.Concatenate()([FID_Layer,Echo_Peak_rise_layer,Echo_Peak_fall_layer])
 
 
 model = keras.Model(inputs=input_layer,outputs=output_layer,name="Lambda_model")
@@ -112,12 +119,12 @@ keras.utils.plot_model(model, show_shapes=True)
 
 # %% Train Params model
 model_params.compile(
-    loss=keras.losses.Huber(),
+    loss=keras.losses.MeanSquaredError(),
     optimizer='adam',
     metrics=["accuracy"],
 )
 
-history = model_params.fit(signal_train, y_train, batch_size=64, epochs=10, validation_split=0.2)
+history = model_params.fit(signal_train, y_train, batch_size=50, epochs=10, validation_split=0.2)
 test_scores = model_params.evaluate(signal_test, y_test, verbose=2)
 print("Test loss:", test_scores[0])
 print("Test accuracy:", test_scores[1])
@@ -136,7 +143,13 @@ model.compile(
     metrics=["accuracy"],
 )
 
-history = model.fit(signal_train, signal_train, batch_size=64, epochs=5, validation_split=0.2)
+my_callbacks = [
+    tf.keras.callbacks.EarlyStopping(patience=2),
+    #tf.keras.callbacks.ModelCheckpoint(filepath='model.{epoch:02d}-{val_loss:.2f}.h5'),
+    tf.keras.callbacks.TensorBoard(log_dir='./logs')
+]
+
+history = model.fit(signal_train, signal_train, batch_size=50, epochs=100, validation_split=0.2, callbacks=my_callbacks)
 test_scores = model.evaluate(signal_test, signal_test, verbose=2)
 print("Test loss:", test_scores[0])
 print("Test accuracy:", test_scores[1])
@@ -144,7 +157,7 @@ print("Test accuracy:", test_scores[1])
 
 #%% Look at predictions
 
-Number = 2
+Number = 1
 
 p = model.predict(signal_test)
 print(p[Number,:])
