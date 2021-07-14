@@ -166,17 +166,19 @@ model_params.save("Model_Params_after.h5")
 model.save("Model_Full.h5")
 #%% Look at predictions
 
-Number = 1
 
-p = model.predict(signal_test)
-#print(p[Number,:])
-#print(p.shape)
-#print(signal_test[Number,:])
+for Number in range(5):
+    p = model.predict(signal_test)
+    p_params = model_params.predict(signal_test)
+    #print(p[Number,:])
+    #print(p.shape)
+    #print(signal_test[Number,:])
+    plt.figure()
+    plt.plot(t,p[Number,:],'o-')
+    plt.plot(t,signal_test[Number,:],'o')
+    plt.legend([str(p_params[Number,:]),str(y_test[Number,:])])
+    plt.title(str(Number))
 
-plt.plot(t,p[Number,:],'o-')
-plt.plot(t,signal_test[Number,:],'o')
-
-p = model_params.predict(signal_test)
-print(['S0', 'T2', 'T2S'])
-print(p[Number,:])
-print(y_test[Number,:])
+    #print(['S0', 'T2', 'T2S'])
+    #print(p_params[Number,:])
+    #print(y_test[Number,:])
