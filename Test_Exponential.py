@@ -52,12 +52,14 @@ def addNoise(input,Spread,Offset):
     output = np.multiply(input, 1 + Spread*randn(input.size).reshape(input.shape)) + Offset*rand(input.size).reshape(input.shape)
     return output
 
-signal_train = addNoise(signal_train, 0.05, 100)
-print(signal_train.shape)
-signal_test = addNoise(signal_test, 0.05, 100)
+signal_train_noise = addNoise(signal_train, 0.05, 100)
+print(signal_train_noise.shape)
+signal_test_noise = addNoise(signal_test, 0.05, 100)
 
-plt.plot(t,np.transpose(signal_train[:5,:]), 'o-')
+plt.plot(t,np.transpose(signal_train_noise[:5,:]), 'o-')
 
+signal_test_noise.dtype
+np.amin(signal_test_noise)
 # %% Network
 
 input_layer = keras.Input(shape=(16,), name = 'Input_layer')
@@ -85,16 +87,16 @@ model_params.compile(
     metrics=["accuracy"],
 )
 
-history = model_params.fit(signal_train, y_train, batch_size=50, epochs=10, validation_split=0.2)
-test_scores = model_params.evaluate(signal_test, y_test, verbose=2)
+history = model_params.fit(signal_train_noise, y_train, batch_size=50, epochs=10, validation_split=0.2)
+test_scores = model_params.evaluate(signal_test_noise, y_test, verbose=2)
 print("Test loss:", test_scores[0])
 print("Test accuracy:", test_scores[1])
 
 Number = 5
 
 p = model_params.predict(signal_test)
-print(p[Number,:])
 print(y_test[Number,:])
+print(p[Number,:])
 
 model_params.save("Model_Params_before.h5")
 
@@ -153,14 +155,15 @@ model.compile(
 my_callbacks = [
     tf.keras.callbacks.EarlyStopping(patience=2),
     #tf.keras.callbacks.ModelCheckpoint(filepath='model.{epoch:02d}-{val_loss:.2f}.h5'),
-    tf.keras.callbacks.TensorBoard(log_dir='./logs/2021_07_14-1450')
+    tf.keras.callbacks.TensorBoard(log_dir='./logs/2021_07_15-1330')
 ]
 
-history = model.fit(signal_train, signal_train, batch_size=50, epochs=100, validation_split=0.2, callbacks=my_callbacks)
-test_scores = model.evaluate(signal_test, signal_test, verbose=2)
+history = model.fit(signal_train_noise, signal_train_noise, batch_size=50, epochs=100, validation_split=0.2, callbacks=my_callbacks)
+test_scores = model.evaluate(signal_test_noise, signal_test, verbose=2)
+test_scores = model.evaluate(signal_test_noise, signal_test_noise, verbose=2)
 print("Test loss:", test_scores[0])
 print("Test accuracy:", test_scores[1])
-test_scores_params = model_params.evaluate(signal_test, y_test, verbose=2)
+test_scores_params = model_params.evaluate(signal_test_noise, y_test, verbose=2)
 
 model_params.save("Model_Params_after.h5")
 model.save("Model_Full.h5")
@@ -174,9 +177,12 @@ for Number in range(5):
     #print(p.shape)
     #print(signal_test[Number,:])
     plt.figure()
-    plt.plot(t,p[Number,:],'o-')
-    plt.plot(t,signal_test[Number,:],'o')
-    plt.legend([str(p_params[Number,:]),str(y_test[Number,:])])
+    plt.plot(t,signal_test[Number,:],'o-')
+    plt.plot(t,signal_test_noise[Number,:],'o')
+    plt.plot(t,p[Number,:],'o--')
+    plt.legend(['Truth S0: {:.0f} T2: {:.1f} T2*: {:.1f}'.format(y_test[Number,0],y_test[Number,1],y_test[Number,2]),
+                'Input with added noise',
+                'Pred S0: {:.0f} T2: {:.1f} T2*: {:.1f}'.format(p_params[Number,0],p_params[Number,1],p_params[Number,2])])
     plt.title(str(Number))
 
     #print(['S0', 'T2', 'T2S'])
