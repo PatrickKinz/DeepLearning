@@ -7,7 +7,7 @@ from numpy.random import rand, randn
 from tensorflow import keras
 from tensorflow.keras import layers
 import matplotlib.pyplot as plt
-
+from sys import getsizeof
 
 # %%
 
@@ -43,11 +43,49 @@ def norm_signal_array(input):
     for i in range(input.shape[0]):
         for j in range(input.shape[1]):
             for k in range(input.shape[2]):
-                input[i,j,k,:] = input[i,j,k,:]/input[i,j,k,0]
+                temp = np.log(input[i,j,k,:])
+                input[i,j,k,:] = temp/temp[0]
     return input
 input_noise_norm_train = norm_signal_array(input_noise_train)
 plt.plot(input_noise_norm_train[0,1,1,:],'o')
 input_noise_norm_test = norm_signal_array(input_noise_test)
+
+
+# %% augment data
+def augment_data(m):
+    m = np.concatenate((m,np.flip(m, axis=1)), axis=0)
+    m = np.concatenate((m,np.rot90(m, k=1, axes=(2,1))), axis=0)
+    m = np.concatenate((m,np.flip(m, axis=(1,2))), axis=0)
+    return m
+
+input_test = augment_data(input_test)
+input_noise_norm_test = augment_data(input_noise_norm_test)
+target_test = augment_data(target_test)
+#input_train = augment_data(input_train)
+input_noise_norm_train = augment_data(input_noise_norm_train)
+getsizeof(input_noise_norm_train)/(1000*1000*1000) # GB
+target_train = augment_data(target_train)
+
+
+
+# %% Look at rotation
+fig, axes = plt.subplots(nrows=2, ncols=2)
+ax = axes.ravel()
+ax[0].imshow(input_noise_norm_test[0,:,:,1], cmap='Greys')
+ax[1].imshow(input_noise_norm_test[100,:,:,1], cmap='Greys')
+ax[2].imshow(input_noise_norm_test[200,:,:,1], cmap='Greys')
+ax[3].imshow(input_noise_norm_test[300,:,:,1], cmap='Greys')
+fig, axes = plt.subplots(nrows=2, ncols=2)
+ax = axes.ravel()
+ax[0].imshow(input_noise_norm_test[400,:,:,1], cmap='Greys')
+ax[1].imshow(input_noise_norm_test[500,:,:,1], cmap='Greys')
+ax[2].imshow(input_noise_norm_test[600,:,:,1], cmap='Greys')
+ax[3].imshow(input_noise_norm_test[700,:,:,1], cmap='Greys')
+
+
+
+
+
 
 
 # %% Network
@@ -123,9 +161,9 @@ ax[2].title.set_text('T2S')
 #ax[3].imshow(p[Number,:,:,0], cmap='Greys')
 #ax[3].title.set_text('S0')
 ax[4].imshow(p[Number,:,:,0], cmap='Greys')
-ax[4].title.set_text('T2')
+#ax[4].title.set_text('T2')
 ax[5].imshow(p[Number,:,:,1], cmap='Greys')
-ax[5].title.set_text('T2S')
+#ax[5].title.set_text('T2S')
 plt.show()
 # %%
 fig, axes = plt.subplots(nrows=1, ncols=3)
@@ -152,11 +190,8 @@ ax[1].title.set_text('T2')
 ax[2].hist(target_test[Number,:,:,2].ravel())
 ax[2].title.set_text('T2S')
 #ax[3].hist(p[Number,:,:,0].ravel())
-#ax[3].title.set_text('S0')
 ax[4].hist(p[Number,:,:,0].ravel())
-ax[4].title.set_text('T2')
 ax[5].hist(p[Number,:,:,1].ravel())
-ax[5].title.set_text('T2S')
 plt.show()
 # ax[3].hist(target_test[Number,:,:,0].ravel())
 # ax[4].hist(target_test[Number,:,:,1].ravel())
