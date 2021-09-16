@@ -73,22 +73,65 @@ def f_QSM(Y, nu, chi_nb ):
     b = (1 - nu/alpha) * chi_nb
     return np.array([a + b]).T
 
+def convert_params_GM(y):
+    """ for normal distributed params in GM """
+    S0 = y[0]
+    R2 = 12 + 6*y[1]
+    Y = 0.6 + 0.15*y[2]
+    nu = 0.04 + 0.02*y[3]
+    chi_nb = 0.1  + 0.15*y[4]
+    return S0,R2,Y,nu,chi_nb
 
+def convert_params_WM(y):
+    """ for normal distributed params in WM """
+    S0 = y[0]
+    R2 = 17 + 4*y[1]
+    Y = 0.6 + 0.15*y[2]
+    nu = 0.02 + 0.02*y[3]
+    chi_nb = -0.1  + 0.15*y[4]
+    return S0,R2,Y,nu,chi_nb
+
+def convert_params(y):
+    """ for uniform distributed params """
+    S0 = y[0]   #S0     = 1000 + 200 * randn(N).T
+    R2 = (30-1) * y[1] + 1
+    SaO2 = 0.98
+    Y  = (SaO2 - 0.01) * y[2] + 0.01
+    nu = (0.1 - 0.001) * y[3] + 0.001
+    chi_nb = ( 0.1-(-0.1) ) * y[4] - 0.1
+    return S0,R2,Y,nu,chi_nb
 
 def createData1D(N,t):
     """
-    #Different means for Gray matter and white matter
-    N = int(N/2)
-    R2     = np.concatenate( ( 12 + 6*randn(N), 17 +4*randn(N) ) ).T
+    #Different means for Gray Matter and White Matter
+    N  = int(N/2)
+    b1 = randn(N)
+    b2 = randn(N)
+    b  = np.concatenate((b1,b2))
+    R2 = np.concatenate( (12+6*b1 , 17+4*b2) ).T
     #print('R2', R2, R2.shape)
-    Y      = 0.6 + 0.15*randn(2*N).T
+    c = randn(2*N)
+    Y = 0.6 + 0.15*c.T
     #print('Y', Y, Y.shape)
-    nu     = np.concatenate((0.04 + 0.02*randn(N), 0.02 + 0.02*randn(N)) ).T
+    d1 = randn(N)
+    d2 = randn(N)
+    d  = np.concatenate((d1,d2))
+    nu = np.concatenate((0.04 + 0.02*d1, 0.02 + 0.02*d2) ).T
     #print('nu', nu, nu.shape)
-    chi_nb = np.concatenate((0.1  + 0.15*randn(N), -0.1 + 0.15*randn(N)) ).T
+    e1 = randn(N)
+    e2 = randn(N)
+    e  = np.concatenate((e1,e2))
+    chi_nb = np.concatenate((0.1  + 0.15*e1, -0.1 + 0.15*e2) ).T
     #print('chi_nb', chi_nb, chi_nb.shape)
-    S0     = np.ones(R2.shape) #1000 + 200 * randn(2*N).T
+    a  = 0.5 * np.ones(R2.shape) #1000 + 200 * randn(2*N).T
+    S0 = a
     #print('S0',S0,S0.shape)
+
+    Need to remove unphysical values.
+    0.1   < R2  < 100
+    0.01  < Y   < Sa02=0.98
+    0.001 < nu  < alpha(=0.77)-0.01
+    -inf  < chi < inf
     """
     b=random(N)
     a=0.5*np.ones(b.shape)
@@ -138,8 +181,14 @@ signal_test, y_test = createData1D(N_test,t)
 print(signal_train.shape)
 print(y_train.shape)
 
-plt.plot(t,np.transpose(signal_train[5:10,:16]), 'o-')
+plt.plot(t,np.transpose(signal_train[:10,:16]), 'o-')
 
+
+
+y_train[6]
+convert_params_GM(y_train[6])
+y_train[7]
+convert_params_GM(y_train[7])
 # %% Add noise to data
 
 def addNoise(input,Spread,Offset):
@@ -185,7 +234,7 @@ model_params.compile(
 my_callbacks = [
     tf.keras.callbacks.EarlyStopping(patience=3),
     #tf.keras.callbacks.ModelCheckpoint(filepath='model.{epoch:02d}-{val_loss:.2f}.h5'),
-    tf.keras.callbacks.TensorBoard(log_dir='./logs/2021_07_27-1600')
+    tf.keras.callbacks.TensorBoard(log_dir='./logs/2021_08_06-1415')
 ]
 
 
@@ -198,10 +247,13 @@ print("Test accuracy:", test_scores[1])
 
 
 p = model_params.predict(signal_test)
-Number = 1
+Number = 2
 #                        S0          R2        Y           nu         chi_nb
 print(y_test[Number,:])
 print(p[Number     ,:])
+
+print(convert_params(y_test[Number,:]))
+print(convert_params(p[Number,:]))
 
 model_params.save("Model_Params_before.h5")
 
@@ -331,9 +383,9 @@ model.compile(
 )
 
 my_callbacks = [
-    tf.keras.callbacks.EarlyStopping(patience=2),
+    tf.keras.callbacks.EarlyStopping(patience=3),
     #tf.keras.callbacks.ModelCheckpoint(filepath='model.{epoch:02d}-{val_loss:.2f}.h5'),
-    #tf.keras.callbacks.TensorBoard(log_dir='./logs/2021_07_15-1330')
+    tf.keras.callbacks.TensorBoard(log_dir='./logs/2021_08_06-1600')
 ]
 
 history = model.fit(signal_train, signal_train, batch_size=500, epochs=100, validation_split=0.2, callbacks=my_callbacks)

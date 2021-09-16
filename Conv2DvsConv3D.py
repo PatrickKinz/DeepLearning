@@ -153,7 +153,7 @@ array([[[[[  404.],
 # %%
 inputs3D = Input((3,3,3,1))
 
-conv3D = Conv3D(filters=1,
+conv3D = Conv3D(filters=5,
               strides=1,
               padding='valid',
               activation='relu',

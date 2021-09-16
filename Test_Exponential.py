@@ -7,6 +7,11 @@ from tensorflow import keras
 from tensorflow.keras import layers
 import matplotlib.pyplot as plt
 
+import time
+import sys
+sys.path.append('C:/Users/pk24/Documents/Programming/Libraries/tf-levenberg-marquardt')
+import levenberg_marquardt as lm
+
 # %% Create Data
 def simulateSignal(S0,T2,T2S,t):
     output = np.zeros((len(S0),len(t)))
@@ -31,6 +36,8 @@ def createData(N, t):
     #y.shape
     signal = simulateSignal(S0,T2,T2S,t)
     #
+    signal = np.cast['float32'](signal)
+    y = np.cast['float32'](y)
     return signal, y
 
 
@@ -50,11 +57,12 @@ plt.plot(t,np.transpose(signal_train[:5,:]), 'o-')
 
 def addNoise(input,Spread,Offset):
     output = np.multiply(input, 1 + Spread*randn(input.size).reshape(input.shape)) + Offset*rand(input.size).reshape(input.shape)
+    output = np.cast['float32'](output)
     return output
 
-signal_train_noise = addNoise(signal_train, 0.05, 100)
+signal_train_noise = addNoise(signal_train, 0.02, 10)
 print(signal_train_noise.shape)
-signal_test_noise = addNoise(signal_test, 0.05, 100)
+signal_test_noise = addNoise(signal_test, 0.02, 10)
 
 plt.plot(t,np.transpose(signal_train_noise[:5,:]), 'o-')
 
@@ -87,11 +95,35 @@ model_params.compile(
     metrics=["accuracy"],
 )
 
+model_params_wrapper = lm.ModelWrapper(
+    tf.keras.models.clone_model(model_params))
+
+model_params_wrapper.compile(
+    optimizer=tf.keras.optimizers.SGD(learning_rate=1.0),
+    loss=lm.ReducedOutputsMeanSquaredError())
+
+# %%
+print("Train using Adam")
+t1_start = time.perf_counter()
 history = model_params.fit(signal_train_noise, y_train, batch_size=50, epochs=10, validation_split=0.2)
+t1_stop = time.perf_counter()
+print("Elapsed time: ", t1_stop - t1_start)
 test_scores = model_params.evaluate(signal_test_noise, y_test, verbose=2)
 print("Test loss:", test_scores[0])
 print("Test accuracy:", test_scores[1])
 
+# %%
+print("Train using Levenberg-Marquardt")
+#train_dataset = tf.data.Dataset.from_tensor_slices((signal_train_noise, signal_train_noise))
+t2_start = time.perf_counter()
+model_params_wrapper.fit(signal_train_noise, y_train, batch_size=500, epochs=100)
+t2_stop = time.perf_counter()
+print("Elapsed time: ", t2_stop - t2_start)
+
+
+
+
+# %%
 Number = 5
 
 p = model_params.predict(signal_test)
@@ -152,6 +184,15 @@ model.compile(
     metrics=["accuracy"],
 )
 
+model_wrapper = lm.ModelWrapper(
+    tf.keras.models.clone_model(model))
+
+model_wrapper.compile(
+    optimizer=tf.keras.optimizers.SGD(learning_rate=1.0),
+    loss=lm.ReducedOutputsMeanSquaredError())
+
+# %%
+
 my_callbacks = [
     tf.keras.callbacks.EarlyStopping(patience=2),
     #tf.keras.callbacks.ModelCheckpoint(filepath='model.{epoch:02d}-{val_loss:.2f}.h5'),
@@ -167,6 +208,16 @@ test_scores_params = model_params.evaluate(signal_test_noise, y_test, verbose=2)
 
 model_params.save("Model_Params_after.h5")
 model.save("Model_Full.h5")
+
+
+# %%
+print("Train using Levenberg-Marquardt")
+#train_dataset = tf.data.Dataset.from_tensor_slices((signal_train_noise, signal_train_noise))
+t2_start = time.perf_counter()
+model_wrapper.fit(signal_train_noise, signal_train_noise, batch_size = 500, epochs=100)
+t2_stop = time.perf_counter()
+print("Elapsed time: ", t2_stop - t2_start)
+
 #%% Look at predictions
 
 
