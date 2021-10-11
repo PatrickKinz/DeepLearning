@@ -15,7 +15,8 @@ for i in range(100,148+1):
 #inputImageFileNameList[-20:]
 
 image = sitk.ReadImage(inputImageFileNameList, imageIO="TIFFImageIO")
-
+print(image)
+#%%
 nda = sitk.GetArrayViewFromImage(image)
 nda.shape
 # (148, 256, 256, 3)
