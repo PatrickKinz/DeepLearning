@@ -61,51 +61,53 @@ plt.colorbar()
 #%%
 """ Take Parameters and Signal fill 3D brain, repeat N times """
 M = 1
-for m in range(M):
-    """ create parameter values for each tissue type """
-    #currently assuming same parameter distribution for all tissue types
-    N_tissues=17 #Air and Abnormal_WM not included
-    t=np.array([3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48])/1000
+def create_whole_brain(M):
+    for m in range(M):
+        """ create parameter values for each tissue type """
+        #currently assuming same parameter distribution for all tissue types
+        N_tissues=17 #Air and Abnormal_WM not included
+        t=np.array([3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48])/1000
 
-    a=0.5*np.ones(N_tissues) #S0
-    b=random(N_tissues) #R2
-    c=random(N_tissues) #Y
-    d=random(N_tissues) #nu
-    e=random(N_tissues) #chi_nb
-    """ Calculate Signal for each tissue type """
-    S0 = a   #S0     = 1000 + 200 * randn(N).T
-    R2 = (30-1) * b + 1
-    SaO2 = 0.98
-    Y  = (SaO2 - 0.01) * c + 0.01
-    nu = (0.1 - 0.001) * d + 0.001
-    chi_nb = ( 0.1-(-0.1) ) * e - 0.1
-    signal = QQ.f_qBOLD(S0,R2,Y,nu,chi_nb,t)
-    print('signal', signal.shape)
-    QSM = QQ.f_QSM(Y,nu,chi_nb)
-    print('QSM',QSM.shape)
+        a=0.5*np.ones(N_tissues) #S0
+        b=random(N_tissues) #R2
+        c=random(N_tissues) #Y
+        d=random(N_tissues) #nu
+        e=random(N_tissues) #chi_nb
+        """ Calculate Signal for each tissue type """
+        S0 = a   #S0     = 1000 + 200 * randn(N).T
+        R2 = (30-1) * b + 1
+        SaO2 = 0.98
+        Y  = (SaO2 - 0.01) * c + 0.01
+        nu = (0.1 - 0.001) * d + 0.001
+        chi_nb = ( 0.1-(-0.1) ) * e - 0.1
+        signal = QQ.f_qBOLD(S0,R2,Y,nu,chi_nb,t)
+        print('signal', signal.shape)
+        QSM = QQ.f_QSM(Y,nu,chi_nb)
+        print('QSM',QSM.shape)
 
-    """ Save Parameters as truth/targets and signal as input/targets for CNN """
-    #Save one brain with 5 Parameters(a,b,c,d,e) in each voxels
-    brainParams = sitk.Image(seg.GetSize(),sitk.sitkVectorFloat32,5)
-    #one brain with Signal in each voxel
-    brainSignal = sitk.Image(seg.GetSize(),sitk.sitkVectorFloat32,16)
-    #one brain with QSM in each voxel
-    brainQSM = sitk.Image(seg.GetSize(),sitk.sitkVectorFloat32,1)
-    #loop over brain.
-    for i in range(seg.GetWidth()):
-        for j in range(seg.GetHeight()):
-            for k in range(seg.GetDepth()):
-                type = seg.GetPixel(i,j,k)
-                if type == 0:
-                    continue #0 is empty/air
-                else:
-                    type=type-1 #shift to leave out 0
-                    brainParams.SetPixel(i,j,k,[a[type],b[type],c[type],d[type],e[type]])
-                    brainSignal.SetPixel(i,j,k,signal[type])
-                    brainQSM.SetPixel(i,j,k,QSM[type])
-    sitk.WriteImage(brainParams,"C:/Users/pk24/Documents/Programming/Brain_Phantom/BrainParams_test_comp.TIF" ,useCompression=True)
-    sitk.WriteImage(brainSignal,"C:/Users/pk24/Documents/Programming/Brain_Phantom/BrainSignal_test_comp.TIF" ,useCompression=True)
-    sitk.WriteImage(brainQSM,"C:/Users/pk24/Documents/Programming/Brain_Phantom/BrainQSM_test_comp.TIF" ,useCompression=True)
+        """ Save Parameters as truth/targets and signal as input/targets for CNN """
+        #Save one brain with 5 Parameters(a,b,c,d,e) in each voxels
+        brainParams = sitk.Image(seg.GetSize(),sitk.sitkVectorFloat32,5)
+        #one brain with Signal in each voxel
+        brainSignal = sitk.Image(seg.GetSize(),sitk.sitkVectorFloat32,16)
+        #one brain with QSM in each voxel
+        brainQSM = sitk.Image(seg.GetSize(),sitk.sitkVectorFloat32,1)
+        #loop over brain.
+        for i in range(seg.GetWidth()):
+            for j in range(seg.GetHeight()):
+                for k in range(seg.GetDepth()):
+                    type = seg.GetPixel(i,j,k)
+                    if type == 0:
+                        continue #0 is empty/air
+                    else:
+                        type=type-1 #shift to leave out 0
+                        brainParams.SetPixel(i,j,k,[a[type],b[type],c[type],d[type],e[type]])
+                        brainSignal.SetPixel(i,j,k,signal[type])
+                        brainQSM.SetPixel(i,j,k,QSM[type])
+        sitk.WriteImage(brainParams,"C:/Users/pk24/Documents/Programming/Brain_Phantom/BrainParams_test_comp.TIF" ,useCompression=True)
+        sitk.WriteImage(brainSignal,"C:/Users/pk24/Documents/Programming/Brain_Phantom/BrainSignal_test_comp.TIF" ,useCompression=True)
+        sitk.WriteImage(brainQSM,"C:/Users/pk24/Documents/Programming/Brain_Phantom/BrainQSM_test_comp.TIF" ,useCompression=True)
+
 #%%
 nda_test = sitk.GetArrayViewFromImage(brainSignal)
 nda_test.shape
@@ -158,12 +160,61 @@ def check_if_sorting_by_ParamX_is_relevant_for_signal_shape(Param_to_sort): #a/S
 check_if_sorting_by_ParamX_is_relevant_for_signal_shape(c)
 
 #%%
+
+
+def threshold_based_crop(image):
+    """From SITK 70_Data_Augmentation.ipynb
+    Use Otsu's threshold estimator to separate background and foreground. In medical imaging the background is
+    usually air. Then crop the image using the foreground's axis aligned bounding box.
+    Args:
+        image (SimpleITK image): An image where the anatomy and background intensities form a bi-modal distribution
+                                 (the assumption underlying Otsu's method.)
+    Return:
+        Cropped image based on foreground's axis aligned bounding box.
+    """
+    # Set pixels that are in [min_intensity,otsu_threshold] to inside_value, values above otsu_threshold are
+    # set to outside_value. The anatomy has higher intensity values than the background, so it is outside.
+    inside_value = 0
+    outside_value = 255
+    label_shape_filter = sitk.LabelShapeStatisticsImageFilter()
+    label_shape_filter.Execute( sitk.OtsuThreshold(image, inside_value, outside_value) )
+    bounding_box = label_shape_filter.GetBoundingBox(outside_value)
+    # The bounding box's first "dim" entries are the starting index and last "dim" entries the size
+    return sitk.RegionOfInterest(image, bounding_box[int(len(bounding_box)/2):], bounding_box[0:int(len(bounding_box)/2)])
+#%%
+def examples_for_cropping():
+    seg_cropped = threshold_based_crop(seg)
+    nda_seg_cropped = sitk.GetArrayViewFromImage(seg_cropped)
+    nda_seg_cropped.shape
+    plt.figure()
+    plt.imshow(nda_seg_cropped[2,:,:])
+    plt.colorbar()
+
+    seg_slice_cropped = threshold_based_crop(sitk.GetImageFromArray(sitk.GetArrayViewFromImage(seg)[2,:,:]))
+    nda_seg_slice_cropped = sitk.GetArrayViewFromImage(seg_slice_cropped)
+    nda_seg_slice_cropped.shape
+    plt.figure()
+    plt.imshow(nda_seg_slice_cropped)
+    plt.colorbar()
+
+examples_for_cropping()
+#%%
+
 """ Pull M random slices from 3D matrix and save them (total number M*N)"""
 """ Augment data total number ?*M*N """
 #Rotation in each Ebene
 #Varied cuts. Cor, Sag, Trans or even in between?
 #Varied size?
 #Deformation?
+def getSlice(Brain,z_slice,number_of_patches):
+    #pick z_slice
+    #crop image to brain
+    #image size = 50 pixel
+    #grid through coordinates from brain size-image size, step size 1
+    #repeat n times
+        #draw parameters for tissue types. calculate qBOLD and QSM
+        #save Params, qBOLD and QSM
+
 
 
 
