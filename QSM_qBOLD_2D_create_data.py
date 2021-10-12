@@ -1,11 +1,11 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import h5py
-from skimage.draw import random_shapes
+#import h5py
+#from skimage.draw import random_shapes
 from scipy.ndimage import gaussian_filter
 from numpy.random import rand, randn, random
+#from tqdm import tqdm  #for progress bar
 
-from tqdm import tqdm
 import SimpleITK as sitk
 import QSM_and_qBOLD_functions as QQ
 #%%
@@ -85,7 +85,7 @@ def create_whole_brain(M):
         QSM = QQ.f_QSM(Y,nu,chi_nb)
         print('QSM',QSM.shape)
 
-        """ Save Parameters as truth/targets and signal as input/targets for CNN """
+        """ Save Parameters as truth/targets and signal as input/targets for CNN
         #Save one brain with 5 Parameters(a,b,c,d,e) in each voxels
         brainParams = sitk.Image(seg.GetSize(),sitk.sitkVectorFloat32,5)
         #one brain with Signal in each voxel
@@ -107,7 +107,7 @@ def create_whole_brain(M):
         sitk.WriteImage(brainParams,"C:/Users/pk24/Documents/Programming/Brain_Phantom/BrainParams_test_comp.TIF" ,useCompression=True)
         sitk.WriteImage(brainSignal,"C:/Users/pk24/Documents/Programming/Brain_Phantom/BrainSignal_test_comp.TIF" ,useCompression=True)
         sitk.WriteImage(brainQSM,"C:/Users/pk24/Documents/Programming/Brain_Phantom/BrainQSM_test_comp.TIF" ,useCompression=True)
-
+         """
 #%%
 nda_test = sitk.GetArrayViewFromImage(brainSignal)
 nda_test.shape
@@ -206,18 +206,65 @@ examples_for_cropping()
 #Varied cuts. Cor, Sag, Trans or even in between?
 #Varied size?
 #Deformation?
-def getSlice(Brain,z_slice,number_of_patches):
-    #pick z_slice
-    #crop image to brain
-    #image size = 50 pixel
-    #grid through coordinates from brain size-image size, step size 1
-    #repeat n times
-        #draw parameters for tissue types. calculate qBOLD and QSM
-        #save Params, qBOLD and QSM
+def create_images(seg):
+    nda_seg = sitk.GetArrayViewFromImage(seg)
+    count = 0 #count patches
+    for i in range(seg.GetDepth()):
+        #crop empty area around brain
+        seg_slice = threshold_based_crop(sitk.GetImageFromArray(nda_seg[i,:,:]))
+        nda_seg_slice = sitk.GetArrayViewFromImage(seg_slice)
+        patch_size = 30 # pixel
+        step_size = 10 #pixel
+        for x in range(0,nda_seg_slice.shape[0]-patch_size,step_size):
+            for y in range(0,nda_seg_slice.shape[1]-patch_size,step_size):
+                nda_seg_patch = nda_seg_slice[x:x+patch_size,y:y+patch_size]
+                count += 1
+                #print(x,' ',y,' ', count)
+                """generate parameters"""
+                #currently assuming same parameter distribution for all tissue types
+                # TODO: add extra case for air
+                # TODO: add extra case for CSF
+                N_tissues=17 #Air and Abnormal_WM not included
+                t=np.array([3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48])/1000
+
+                a=0.5*np.ones(N_tissues) #S0 # TODO: Allow some variation
+                b=random(N_tissues) #R2
+                c=random(N_tissues) #Y
+                d=random(N_tissues) #nu
+                e=random(N_tissues) #chi_nb
+                """ Calculate qBOLD and QSM for each tissue type """
+                S0 = a   #S0     = 1000 + 200 * randn(N).T
+                R2 = (30-1) * b + 1
+                SaO2 = 0.98
+                Y  = (SaO2 - 0.01) * c + 0.01
+                nu = (0.1 - 0.001) * d + 0.001
+                chi_nb = ( 0.1-(-0.1) ) * e - 0.1
+                signal = QQ.f_qBOLD(S0,R2,Y,nu,chi_nb,t)
+                QSM = QQ.f_QSM(Y,nu,chi_nb)
+
+                #put them in the patch
+                patch_Params = np.zeros(nda_seg_patch.shape)
+                patch_qBOLD  = np.zeros(nda_seg_patch.shape)
+                patch_QSM    = np.zeros(nda_seg_patch.shape)
+                for xx in range(patch_size):
+                    for yy in range(patch_size):
+                        type = nda_seg_patch[xx,yy]
+                        patch_Params[xx,yy] = [a[type],b[type],c[type],d[type],e[type]]
+                        patch_qBOLD[xx,yy]  = qBOLD[type,:]
+                        patch_QSM[xx,yy]    = QSM[type]
+                #save 3 images
+                #patch_Params
+                #patch_qBOLD
+                #patch_QSM
+        print(i, count)
 
 
 
 
+create_images(seg)
+
+42441    *    (5 + 16 + 1)        *30*30
+#patches *(params + qBOLD + QSM) *image size  = 840,331,800
 #%%
 """ Loop over saved slices """
     """ Add noise to signal slices, repeat K times (total number K*?*M*N)"""
