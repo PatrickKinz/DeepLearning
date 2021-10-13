@@ -209,7 +209,7 @@ examples_for_cropping()
 def create_images(seg):
     nda_seg = sitk.GetArrayViewFromImage(seg)
     count = 0 #count patches
-    for i in range(2):#seg.GetDepth()):
+    for i in range(seg.GetDepth()):
         #crop empty area around brain
         seg_slice = threshold_based_crop(sitk.GetImageFromArray(nda_seg[i,:,:]))
         nda_seg_slice = sitk.GetArrayViewFromImage(seg_slice)
@@ -249,20 +249,22 @@ def create_images(seg):
                 nu[0] = 0
                 chi_nb[0] = 0
 
-                #type[3] CSF
+                """type[3] CSF
                 #a/S0 normal
-                ## TODO: decide on R2 for CSF compared to other tissues
+                #for now treat CSF not as special. Later maybe add percentage of CSF to the Network, then add CSF here too
+                #T2 for CSF is between 1 and 2 seconds => R2 between 0.5 and 1
                 #b[3] =
                 #R2[3] = #smaller for CSF than rest
-                c[3] = 0
-                d[3] = 0
-                e[3] = 0
-                Y[0] = 0
-                nu[0] = 0
-                chi_nb[0] = 0
+                #c[3] = 0
+                #d[3] = 0
+                #e[3] = 0
+                #Y[3] = 0
+                #nu[3] = 0
+                #chi_nb[3] = 0
+                """
                 #put them in the patch
                 patch_Params = np.zeros((5,nda_seg_patch.shape[0],nda_seg_patch.shape[1]),dtype=np.float32)
-                print(patch_Params.shape)
+                #print(patch_Params.shape)
                 patch_qBOLD  = np.zeros((16,nda_seg_patch.shape[0],nda_seg_patch.shape[1]),dtype=np.float32)
                 patch_QSM    = np.zeros(nda_seg_patch.shape,dtype=np.float32)
                 for xx in range(patch_size):
@@ -272,11 +274,12 @@ def create_images(seg):
                         patch_qBOLD[:,xx,yy]  = qBOLD[type,:]
                         patch_QSM[xx,yy]    = QSM[type]
                 #save 3 images
-                print(patch_Params.dtype)
+                #print(patch_Params.dtype)
                 outputFolder = "C:/Users/pk24/Documents/Programming/Brain_Phantom/Patches/"
-                sitk.WriteImage(sitk.GetImageFromArray(patch_Params),outputFolder+ "Params/Params_{0}.TIF".format(count), useCompression=False)
-                sitk.WriteImage(sitk.GetImageFromArray(patch_qBOLD),outputFolder + "qBOLD/qBOLD_{0}.TIF".format(count), useCompression=False)
-                sitk.WriteImage(sitk.GetImageFromArray(patch_QSM),outputFolder + "QSM/QSM_{0}.TIF".format(count), useCompression=False)
+                file_number = "{0}".format(count).zfill(6)
+                sitk.WriteImage(sitk.GetImageFromArray(patch_Params),outputFolder+ "Params/Params_"+file_number+ ".TIF", useCompression=False)
+                sitk.WriteImage(sitk.GetImageFromArray(patch_qBOLD),outputFolder + "qBOLD/qBOLD_"+file_number+ ".TIF", useCompression=False)
+                sitk.WriteImage(sitk.GetImageFromArray(patch_QSM),outputFolder + "QSM/QSM_"+file_number+ ".TIF", useCompression=False)
                 count += 1
                 #patch_qBOLD
                 #patch_QSM
@@ -287,8 +290,8 @@ def create_images(seg):
 
 create_images(seg)
 
-#42441    *    (5 + 16 + 1)        *30*30
-#patches *(params + qBOLD + QSM) *image size  = 840,331,800
+#42441    *    (5 + 16 + 1)        *30*30    *  4
+#patches *(params + qBOLD + QSM) *image size *float32 = 3.361.327.200 = 3.35GB
 #%%
 """ Loop over saved slices """
     """ Add noise to signal slices, repeat K times (total number K*?*M*N)"""
