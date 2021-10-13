@@ -38,6 +38,14 @@ input_train.dtype
 plt.plot(input_train[0,1,1,:],'o-')
 plt.plot(input_noise_train[0,1,1,:],'o')
 
+# %% Read patch images
+data_dir = "C:/Users/pk24/Documents/Programming/Brain_Phantom/Patches/"
+Params_ds = tf.data.Dataset.list_files(data_dir+'Params/*', shuffle=False)
+
+for f in Params_ds.take(5):
+  print(f.numpy())
+
+
 # %% norm
 
 def norm_signal_array(input,target):
