@@ -8,46 +8,74 @@ from tensorflow import keras
 from tensorflow.keras import layers
 import matplotlib.pyplot as plt
 from sys import getsizeof
-
-# %%
-
-f = h5py.File("data/Exponential2D_bigger.hdf5", "r")
-list(f.keys())
-dset_input_train = f["input_train"]
-dset_input_noise_train = f["input_noise_train"]
-dset_target_train = f["target_train"]
-dset_input_test = f["input_test"]
-dset_input_noise_test = f["input_noise_test"]
-dset_target_test = f["target_test"]
-
-input_train = np.array(dset_input_train)
-dset_input_train.shape
-dset_input_train.dtype
-input_noise_train = np.array(dset_input_noise_train)
-target_train = np.array(dset_target_train)
-input_test = np.array(dset_input_test)
-input_noise_test = np.array(dset_input_noise_test)
-target_test = np.array(dset_target_test)
-# %%
-f.close()
+import SimpleITK as sitk
+from tqdm import tqdm  #for progress bar
+import gc
 
 
-input_train.shape
-input_train.dtype
-
-plt.plot(input_train[0,1,1,:],'o-')
-plt.plot(input_noise_train[0,1,1,:],'o')
-
-# %% Read patch images
+#%%
 data_dir = "C:/Users/pk24/Documents/Programming/Brain_Phantom/Patches/"
-Params_ds = tf.data.Dataset.list_files(data_dir+'Params/*', shuffle=False)
+def read_data(data_dir):
+    file_list_Params=[]
+    file_list_qBOLD=[]
+    file_list_QSM=[]
+    for i in tqdm(range(1000)): #42441
+        file_number = "{0}".format(i).zfill(6)
+        file_list_Params.append(data_dir+ "Params/Params_"+file_number+ ".TIF")
+        file_list_qBOLD.append(data_dir + "qBOLD/qBOLD_"+file_number+ ".TIF")
+        file_list_QSM.append(data_dir + "QSM/QSM_"+file_number+ ".TIF")
+    Params = sitk.GetArrayViewFromImage(sitk.ReadImage(file_list_Params))
+    Params = np.moveaxis(Params,1,-1) #channels last
+    qBOLD  = sitk.GetArrayViewFromImage(sitk.ReadImage(file_list_qBOLD))
+    qBOLD  = np.moveaxis(qBOLD,1,-1) #channels last
+    QSM  = sitk.GetArrayViewFromImage(sitk.ReadImage(file_list_QSM))
+    QSM= np.expand_dims(QSM,axis=-1) #add one channel
+    return Params,qBOLD,QSM
 
-for f in Params_ds.take(5):
-  print(f.numpy())
+Params,qBOLD,QSM = read_data(data_dir)
+print(Params.shape)
+print(qBOLD.shape)
+print(QSM.shape)
 
 
+#%% shuffle images
+"""
+idx = rand(Params.shape[0]).argsort()
+idx.shape
+print(idx[0])
+Params_shuffled = np.zeros(Params.shape)
+qBOLD_shuffled = np.zeros(qBOLD.shape)
+QSM_shuffled = np.zeros(QSM.shape)
+for i in range(len(idx)):
+    print(i)
+    Params_shuffled[i,:,:,:] = Params[idx[i],:,:,:]
+for i in range(len(idx)):
+    print(i)
+    for j in range(qBOLD.shape[1]):
+        for k in range(qBOLD.shape[2]):
+                qBOLD_shuffled[i,j,k,:] = qBOLD[idx[i],j,k,:]
+for i in tqdm(range(len(idx))):
+    QSM_shuffled[i,:,:,:] = QSM[idx[i],:,:,:]
+Params = Params_shuffled
+qBOLD = qBOLD_shuffled
+QSM = QSM_shuffled
+del Params_shuffled,qBOLD_shuffled,QSM_shuffled
+gc.collect()
+print(Params.shape)
+print(qBOLD.shape)
+print(QSM.shape)
+"""
+#%% split in training and test
+threshold = int(Params.shape[0]*0.9)
+threshold
+Params_training= Params[:threshold,:,:,:]
+Params_test= Params[threshold:,:,:,:]
+qBOLD_training= qBOLD[:threshold,:,:,:]
+qBOLD_test= qBOLD[threshold:,:,:,:]
+QSM_training= QSM[:threshold,:,:,:]
+QSM_test= QSM[threshold:,:,:,:]
 # %% norm
-
+"""
 def norm_signal_array(input,target):
     for i in range(input.shape[0]):
         for j in range(input.shape[1]):
@@ -59,7 +87,7 @@ def norm_signal_array(input,target):
 input_noise_norm_train, target_train = norm_signal_array(input_noise_train, target_train)
 plt.plot(input_noise_norm_train[0,1,1,:],'o')
 input_noise_norm_test, target_test = norm_signal_array(input_noise_test, target_test)
-
+"""
 """
 input_noise_norm_train = np.log(input_noise_train)
 input_noise_norm_test = np.log(input_noise_test)
@@ -74,6 +102,7 @@ input_noise_norm_test = input_noise_test
 input_norm_test = input_test
 """
 # %% augment data
+"""
 def augment_data(m):
     m = np.concatenate((m,np.flip(m, axis=1)), axis=0)
     m = np.concatenate((m,np.rot90(m, k=1, axes=(2,1))), axis=0)
@@ -108,15 +137,15 @@ ax[3].imshow(input_noise_norm_test[700,:,:,1], cmap='Greys')
 
 
 
-
+"""
 
 
 # %% Network
 
-input_qBOLD = keras.Input(shape=(128,128,16,1), name = 'Input_qBOLD')
-input_QSM = keras.Input(shape=(128,128,1,1), name = 'Input_QSM')
-input_layer.shape
-input_layer.dtype
+input_qBOLD = keras.Input(shape=(30,30,16,1), name = 'Input_qBOLD')
+
+input_qBOLD.shape
+input_qBOLD.dtype
 
 n=8
 
@@ -162,6 +191,8 @@ model_qBOLD = keras.Model(inputs=input_qBOLD, outputs = dense_layer_qBOLD, name=
 model_qBOLD.summary()
 keras.utils.plot_model(model_qBOLD, show_shapes=True)
 # %%
+
+input_QSM = keras.Input(shape=(30,30,1,1), name = 'Input_QSM')
 conv_QSM_1 = keras.layers.Conv3D(8,
                   (3,3,1),
                   strides=(1,1,1),
@@ -200,7 +231,7 @@ dense_layer_3e = layers.Dense(1,activation="sigmoid", name = 'Dense_3e_chi_nb')(
 
 #before_lambda_model = keras.Model(input_layer, dense_layer_3, name="before_lambda_model")
 
-Params_Layer = layers.Concatenate(name = 'Output_Params')([dense_layer_3a,dense_layer_3b,dense_layer_3c,dense_layer_3d,dense_layer_3e])
+Params_Layer = layers.concatenate(name = 'Output_Params',inputs=[dense_layer_3a,dense_layer_3b,dense_layer_3c,dense_layer_3d,dense_layer_3e],axis=-2)
 #Params_Layer = layers.Concatenate(name = 'Output_Params')([dense_layer_3b,dense_layer_3c])
 model_params = keras.Model(inputs=[input_qBOLD,input_QSM],outputs=Params_Layer,name="Params_model")
 model_params.summary()
@@ -208,11 +239,17 @@ keras.utils.plot_model(model_params, show_shapes=True)
 
 
 # %% Train Params model
+
 model_params.compile(
     loss=keras.losses.MeanAbsolutePercentageError(),
+    #loss=keras.losses.MeanSquaredLogarithmicError(),
+    #loss=keras.losses.MeanSquaredError(),
     optimizer='adam',
+    #metrics=[tf.keras.metrics.MeanAbsolutePercentageError()],
     metrics=["accuracy"],
 )
+
+#model_params.compile(optimizer='sgd', loss=tf.keras.losses.CosineSimilarity(axis=-2))
 
 my_callbacks = [
     tf.keras.callbacks.EarlyStopping(patience=2),
@@ -221,14 +258,14 @@ my_callbacks = [
 ]
 
 
-history = model_params.fit(input_noise_norm_train, target_train[:,:,:,:], batch_size=10, epochs=50, validation_split=0.2, callbacks=my_callbacks)
-test_scores = model_params.evaluate(input_noise_norm_test, target_test[:,:,:,:], verbose=2)
+history = model_params.fit([qBOLD_training,QSM_training], Params_training , batch_size=100, epochs=50, validation_split=0.2, callbacks=my_callbacks)
+test_scores = model_params.evaluate([qBOLD_test,QSM_test], Params_test, verbose=2)
 print("Test loss:", test_scores[0])
 print("Test accuracy:", test_scores[1])
 
 
-model_params.save("Model_2D_Params_before.h5")
-
+#model_params.save("Model_2D_Params_before.h5")
+"""
 # %%
 model_params = keras.models.load_model("Model_2D_Params_before.h5")
 model_params.summary()
@@ -300,7 +337,7 @@ def simulateSignal_for_FID(tensor):
 
 
 def simulateSignal_for_Echo_Peak_rise(tensor):
-    """x[0] = S0, x[1] = T2, x[2] = T2S   """
+    # x[0] = S0, x[1] = T2, x[2] = T2S
     t=tf.constant([21,24,27,30,33,36,39], dtype=tf.float32)
     S0 = tensor[0]
     T2 = tensor[1]
@@ -310,7 +347,7 @@ def simulateSignal_for_Echo_Peak_rise(tensor):
     return output
 
 def simulateSignal_for_Echo_Peak_fall(tensor):
-    """x[0] = S0, x[1] = T2, x[2] = T2S   """
+    # x[0] = S0, x[1] = T2, x[2] = T2S
     t=tf.constant([42,45,48], dtype=tf.float32)
     S0 = tensor[0]
     T2 = tensor[1]
@@ -386,3 +423,4 @@ ax[2].plot(target_test[Number,64,:,2])
 ax[2].plot(p_after[Number,64,:,2])
 ax[2].title.set_text('T2S')
 plt.show()
+"""
