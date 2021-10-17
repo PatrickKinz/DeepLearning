@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 #import h5py
 #from skimage.draw import random_shapes
-from scipy.ndimage import gaussian_filter
+#from scipy.ndimage import gaussian_filter
 from numpy.random import rand, randn, random
 #from tqdm import tqdm  #for progress bar
 
@@ -275,7 +275,8 @@ def create_images(seg):
                         patch_QSM[xx,yy]    = QSM[type]
                 #save 3 images
                 #print(patch_Params.dtype)
-                outputFolder = "C:/Users/pk24/Documents/Programming/Brain_Phantom/Patches/"
+                #outputFolder = "C:/Users/patri/Documents/Programming/Brain_Phantom/Patches/"
+                outputFolder = "../Brain_Phantom/Patches/"
                 file_number = "{0}".format(count).zfill(6)
                 sitk.WriteImage(sitk.GetImageFromArray(patch_Params),outputFolder+ "Params/Params_"+file_number+ ".TIF", useCompression=False)
                 sitk.WriteImage(sitk.GetImageFromArray(patch_qBOLD),outputFolder + "qBOLD/qBOLD_"+file_number+ ".TIF", useCompression=False)

@@ -1,6 +1,6 @@
 # %% import modules
 import tensorflow as tf
-tf.config.list_physical_devices('GPU')
+print(tf.config.list_physical_devices('GPU'))
 import numpy as np
 import h5py
 from numpy.random import rand, randn
@@ -14,21 +14,25 @@ import gc
 
 
 #%%
-data_dir = "C:/Users/pk24/Documents/Programming/Brain_Phantom/Patches/"
+#data_dir = "C:/Users/pk24/Documents/Programming/Brain_Phantom/Patches/"
+data_dir = "../Brain_Phantom/Patches/"
 def read_data(data_dir):
     file_list_Params=[]
     file_list_qBOLD=[]
     file_list_QSM=[]
-    for i in tqdm(range(1000)): #42441
+    for i in tqdm(range(42441)): #42441
         file_number = "{0}".format(i).zfill(6)
         file_list_Params.append(data_dir+ "Params/Params_"+file_number+ ".TIF")
         file_list_qBOLD.append(data_dir + "qBOLD/qBOLD_"+file_number+ ".TIF")
         file_list_QSM.append(data_dir + "QSM/QSM_"+file_number+ ".TIF")
-    Params = sitk.GetArrayViewFromImage(sitk.ReadImage(file_list_Params))
+    #print(file_list_Params)
+    Params = sitk.GetArrayFromImage(sitk.ReadImage(file_list_Params))
+    #print(Params.shape)
     Params = np.moveaxis(Params,1,-1) #channels last
-    qBOLD  = sitk.GetArrayViewFromImage(sitk.ReadImage(file_list_qBOLD))
+    #print(Params.shape)
+    qBOLD  = sitk.GetArrayFromImage(sitk.ReadImage(file_list_qBOLD))
     qBOLD  = np.moveaxis(qBOLD,1,-1) #channels last
-    QSM  = sitk.GetArrayViewFromImage(sitk.ReadImage(file_list_QSM))
+    QSM  = sitk.GetArrayFromImage(sitk.ReadImage(file_list_QSM))
     QSM= np.expand_dims(QSM,axis=-1) #add one channel
     return Params,qBOLD,QSM
 
@@ -36,21 +40,47 @@ Params,qBOLD,QSM = read_data(data_dir)
 print(Params.shape)
 print(qBOLD.shape)
 print(QSM.shape)
-
-
-#%% shuffle images
+#%%
 """
+print(np.any(~np.isfinite(Params)))
+print(np.isfinite(Params))
+
+print(Params[0,0,0,:])#[3.783506e-44 2.382207e-44 1.401298e-45 7.917653e+05 4.624285e-44]
+print(Params[0,0,1,:])#[       0.        0.        0. 50675840.        0.]
+print(Params[0,0,2,:])#[          nan           nan 7.0356876e-09 5.2821254e+04           nan]
+print(Params[0,:,:,0])
+#%%
+plt.figure()
+plt.imshow(Params[0,:,:,0])
+plt.colorbar()
+Params[0,0,0:10,0]
+#%%
+
+Params_test = sitk.GetArrayFromImage(sitk.ReadImage("../Brain_Phantom/Patches/Params/Params_000000.TIF"))
+Params_test.shape
+Params_test = np.moveaxis(Params_test,0,-1)
+Params_test.shape
+#%%
+plt.figure()
+plt.imshow(Params_test[:,:,0])
+plt.colorbar()
+
+Params_test[0,0:10,0]
+"""
+#%% shuffle images
+
+#"""
 idx = rand(Params.shape[0]).argsort()
 idx.shape
-print(idx[0])
+#print(idx[0])
 Params_shuffled = np.zeros(Params.shape)
 qBOLD_shuffled = np.zeros(qBOLD.shape)
 QSM_shuffled = np.zeros(QSM.shape)
 for i in range(len(idx)):
-    print(i)
+    #print(i)
     Params_shuffled[i,:,:,:] = Params[idx[i],:,:,:]
 for i in range(len(idx)):
-    print(i)
+    #print(i)
     for j in range(qBOLD.shape[1]):
         for k in range(qBOLD.shape[2]):
                 qBOLD_shuffled[i,j,k,:] = qBOLD[idx[i],j,k,:]
@@ -64,10 +94,10 @@ gc.collect()
 print(Params.shape)
 print(qBOLD.shape)
 print(QSM.shape)
-"""
+#"""
 #%% split in training and test
 threshold = int(Params.shape[0]*0.9)
-threshold
+print(threshold)
 Params_training= Params[:threshold,:,:,:]
 Params_test= Params[threshold:,:,:,:]
 qBOLD_training= qBOLD[:threshold,:,:,:]
@@ -258,7 +288,7 @@ my_callbacks = [
 ]
 
 
-history = model_params.fit([qBOLD_training,QSM_training], Params_training , batch_size=100, epochs=50, validation_split=0.2, callbacks=my_callbacks)
+history = model_params.fit([qBOLD_training,QSM_training], Params_training , batch_size=128, epochs=1000, validation_split=0.2, callbacks=my_callbacks)
 test_scores = model_params.evaluate([qBOLD_test,QSM_test], Params_test, verbose=2)
 print("Test loss:", test_scores[0])
 print("Test accuracy:", test_scores[1])
