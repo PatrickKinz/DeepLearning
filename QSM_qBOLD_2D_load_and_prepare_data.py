@@ -152,3 +152,8 @@ ax[3].imshow(input_noise_norm_test[700,:,:,1], cmap='Greys')
 
 
 """
+def load_and_prepare_data():
+    Params,qBOLD,QSM = read_data()
+    Params,qBOLD,QSM = shuffle_data(Params,qBOLD,QSM)
+    Params_training,Params_test,qBOLD_training,qBOLD_test,QSM_training,QSM_test = split_training_test(Params,qBOLD,QSM)
+    return Params_training,Params_test,qBOLD_training,qBOLD_test,QSM_training,QSM_test
