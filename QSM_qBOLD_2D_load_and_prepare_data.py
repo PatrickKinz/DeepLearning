@@ -76,6 +76,17 @@ def shuffle_data(Params,qBOLD,QSM):
         QSM_shuffled[i,:,:,:] = QSM[idx[i],:,:,:]
     return Params_shuffled,qBOLD_shuffled,QSM_shuffled
 
+#%%
+def add_noise_array(a):
+    noise = np.random.normal(loc=0,scale=1./100,size=a.shape) # noise 1% or 2% ?  Signal amplitude = 0.5
+    a = a + noise
+    return np.maximum(a,np.zeros(a.shape))
+
+def add_noise_data(Params,qBOLD,QSM):
+    Params = add_noise_array(Params)
+    qBOLD = add_noise_array(qBOLD)
+    QSM = add_noise_array(QSM)
+    return Params,qBOLD,QSM
 
 #%% split in training and test
 def split_training_test(Params,qBOLd,QSM,percentage=0.9):
@@ -155,5 +166,6 @@ ax[3].imshow(input_noise_norm_test[700,:,:,1], cmap='Greys')
 def load_and_prepare_data():
     Params,qBOLD,QSM = read_data()
     Params,qBOLD,QSM = shuffle_data(Params,qBOLD,QSM)
+    Params,qBOLD,QSM = add_noise_data(Params,qBOLD,QSM)
     Params_training,Params_test,qBOLD_training,qBOLD_test,QSM_training,QSM_test = split_training_test(Params,qBOLD,QSM)
     return Params_training,Params_test,qBOLD_training,qBOLD_test,QSM_training,QSM_test
