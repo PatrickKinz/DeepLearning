@@ -1,11 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
-#import h5py
-#from skimage.draw import random_shapes
-#from scipy.ndimage import gaussian_filter
 from numpy.random import rand, randn, random
-#from tqdm import tqdm  #for progress bar
-
+from tqdm import tqdm  #for progress bar
 import SimpleITK as sitk
 import QSM_and_qBOLD_functions as QQ
 #%%
