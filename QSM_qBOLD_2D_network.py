@@ -9,6 +9,7 @@ from numpy.random import rand, randn
 import matplotlib.pyplot as plt
 from tqdm import tqdm  #for progress bar
 
+import h5py
 from QSM_qBOLD_2D_load_and_prepare_data import load_and_prepare_data
 
 #%%
@@ -17,13 +18,13 @@ from QSM_qBOLD_2D_load_and_prepare_data import load_and_prepare_data
 
 #np.savez("../Brain_Phantom/Patches/NumpyArchiv",Params_training=Params_training,Params_test=Params_test,qBOLD_training=qBOLD_training,qBOLD_test=qBOLD_test,QSM_training=QSM_training,QSM_test=QSM_test)
 Dataset=np.load("../Brain_Phantom/Patches/NumpyArchiv.npz")
-Dataset
 Params_training=Dataset['Params_training']
 Params_test=Dataset['Params_test']
 qBOLD_training=Dataset['qBOLD_training']
 qBOLD_test=Dataset['qBOLD_test']
-QSM_training=Dataset['QSM_training'
+QSM_training=Dataset['QSM_training']
 QSM_test=Dataset['QSM_test']
+
 
 
 # %% Network
@@ -153,66 +154,91 @@ print("Test accuracy:", test_scores[1])
 
 #%%
 #model_params.save("Model_2D_Params_before.h5")
-"""
+#"""
 # %%
 model_params = keras.models.load_model("Model_2D_Params_before.h5")
 model_params.summary()
 
 # %%
-p = model_params.predict(input_noise_norm_test)
+p = model_params.predict([qBOLD_test,QSM_test])
 
-Number = 1
 
-fig, axes = plt.subplots(nrows=2, ncols=3)
+#%%
+Number = 2
+fig, axes = plt.subplots(nrows=2, ncols=5,figsize=(15,5))
 ax = axes.ravel()
-ax[0].imshow(target_test[Number,:,:,0], cmap='Greys')
-ax[0].title.set_text('S0')
-ax[1].imshow(target_test[Number,:,:,1], cmap='Greys')
-ax[1].title.set_text('T2')
-ax[2].imshow(target_test[Number,:,:,2], cmap='Greys')
-ax[2].title.set_text('T2S')
-ax[3].imshow(p[Number,:,:,0], cmap='Greys')
-#ax[3].title.set_text('S0')
-ax[4].imshow(p[Number,:,:,1], cmap='Greys')
-#ax[4].title.set_text('T2')
-ax[5].imshow(p[Number,:,:,2], cmap='Greys')
-#ax[5].title.set_text('T2S')
+P0 = ax[0].imshow(Params_test[Number,:,:,0], cmap='Greys')
+ax[0].title.set_text('a')
+plt.colorbar(P0,ax=ax[0])
+P1 = ax[1].imshow(Params_test[Number,:,:,1], cmap='Greys')
+ax[1].title.set_text('b')
+plt.colorbar(P1,ax=ax[1])
+P2 = ax[2].imshow(Params_test[Number,:,:,2], cmap='Greys')
+ax[2].title.set_text('c')
+plt.colorbar(P2,ax=ax[2])
+P3 = ax[3].imshow(Params_test[Number,:,:,3], cmap='Greys')
+ax[3].title.set_text('d')
+plt.colorbar(P3,ax=ax[3])
+P4 = ax[4].imshow(Params_test[Number,:,:,4], cmap='Greys')
+ax[4].title.set_text('e')
+plt.colorbar(P4,ax=ax[4])
+P5 = ax[5].imshow(p[Number,:,:,0], cmap='Greys')
+plt.colorbar(P5,ax=ax[5])
+P6 = ax[6].imshow(p[Number,:,:,1], cmap='Greys')
+plt.colorbar(P6,ax=ax[6])
+P7 = ax[7].imshow(p[Number,:,:,2], cmap='Greys')
+plt.colorbar(P7,ax=ax[7])
+P8 = ax[8].imshow(p[Number,:,:,3], cmap='Greys')
+plt.colorbar(P8,ax=ax[8])
+P9 = ax[9].imshow(p[Number,:,:,4], cmap='Greys')
+plt.colorbar(P9,ax=ax[9])
 plt.show()
-# %%
-fig, axes = plt.subplots(nrows=1, ncols=3)
-ax = axes.ravel()
-ax[0].plot(target_test[Number,64,:,0])
-ax[0].plot(p[Number,64,:,0])
-ax[0].title.set_text('S0')
-ax[1].plot(target_test[Number,64,:,1])
-ax[1].plot(p[Number,64,:,1])
-ax[1].title.set_text('T2')
-ax[2].plot(target_test[Number,64,:,2])
-ax[2].plot(p[Number,64,:,2])
-ax[2].title.set_text('T2S')
-plt.show()
-
-# %%
-
-fig, axes = plt.subplots(nrows=2, ncols=3)
-ax = axes.ravel()
-ax[0].hist(target_test[Number,:,:,0].ravel())
-ax[0].title.set_text('S0')
-ax[1].hist(target_test[Number,:,:,1].ravel())
-ax[1].title.set_text('T2')
-ax[2].hist(target_test[Number,:,:,2].ravel())
-ax[2].title.set_text('T2S')
-ax[3].hist(p[Number,:,:,0].ravel())
-ax[4].hist(p[Number,:,:,1].ravel())
-ax[5].hist(p[Number,:,:,2].ravel())
-plt.show()
-# ax[3].hist(target_test[Number,:,:,0].ravel())
-# ax[4].hist(target_test[Number,:,:,1].ravel())
-# ax[5].hist(target_test[Number,:,:,2].ravel())
-
 
 # %%
+fig, axes = plt.subplots(nrows=1, ncols=5,figsize=(15,5))
+ax = axes.ravel()
+ax[0].plot(Params_test[Number,15,:,0])
+ax[0].plot(p[Number,15,:,0])
+ax[0].title.set_text('a')
+ax[1].plot(Params_test[Number,15,:,1])
+ax[1].plot(p[Number,15,:,1])
+ax[1].title.set_text('b')
+ax[2].plot(Params_test[Number,15,:,2])
+ax[2].plot(p[Number,15,:,2])
+ax[2].title.set_text('c')
+ax[3].plot(Params_test[Number,15,:,3])
+ax[3].plot(p[Number,15,:,3])
+ax[3].title.set_text('d')
+ax[4].plot(Params_test[Number,15,:,4])
+ax[4].plot(p[Number,15,:,4])
+ax[4].title.set_text('e')
+plt.show()
 
+# %%
+
+fig, axes = plt.subplots(nrows=2, ncols=5,figsize=(15,5))
+ax = axes.ravel()
+ax[0].hist(Params_test[Number,:,:,0].ravel())
+ax[0].title.set_text('a')
+ax[1].hist(Params_test[Number,:,:,1].ravel())
+ax[1].title.set_text('b')
+ax[2].hist(Params_test[Number,:,:,2].ravel())
+ax[2].title.set_text('c')
+ax[3].hist(Params_test[Number,:,:,3].ravel())
+ax[3].title.set_text('d')
+ax[4].hist(Params_test[Number,:,:,4].ravel())
+ax[4].title.set_text('e')
+ax[5].hist(p[Number,:,:,0].ravel())
+ax[6].hist(p[Number,:,:,1].ravel())
+ax[7].hist(p[Number,:,:,2].ravel())
+ax[8].hist(p[Number,:,:,3].ravel())
+ax[9].hist(p[Number,:,:,4].ravel())
+plt.show()
+
+
+
+# %%
+""" Second training step """
 
 def simulateSignal_for_FID(tensor):
     t=tf.constant([3,6,9,12,15,18], dtype=tf.float32)
@@ -311,4 +337,4 @@ ax[2].plot(target_test[Number,64,:,2])
 ax[2].plot(p_after[Number,64,:,2])
 ax[2].title.set_text('T2S')
 plt.show()
-"""
+#"""
