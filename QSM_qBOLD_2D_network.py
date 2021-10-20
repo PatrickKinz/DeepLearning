@@ -239,9 +239,32 @@ plt.show()
 
 # %%
 """ Second training step """
+# TODO: check values for t, still the same every 3 milli seconds
+# TODO: translate Functions of QSM QBOLD to tf.math for FID, Echo Rise and Echo Fall
+
+
+def f_hyper_tensor(x):
+    '''
+    Write hypergeometric function as taylor order 10 for beginning and as x-1 for larger numbers
+    Exakt equation: hypergeom(-0.5,[0.75,1.25],-9/16*x.^2)-1
+    (Intersection>x)*taylor + (x>=Intersection)*(x-1)
+    taylor = - (81*x^8)/10890880 + (27*x^6)/80080 - (3*x^4)/280 + (3*x^2)/10
+    Intersection at approx x = 3.72395
+    '''
+    Intersection = tf.constant(3.72395,dtype=tf.float32)
+    a = -81./10890880*tf.math.pow(x,8) +27./80080*tf.math.pow(x,6) -3./280*tf.math.pow(x,4) +3./10*tf.math.pow(x,2)
+    b = x-1
+    return tf.where(tf.math.greater(Intersection,x),a, b)
+
+def test_f_hyper_tensor():
+    t=tf.constant([0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,40,50,60,70], dtype=tf.float32)/10
+    out = f_hyper_tensor(t)
+    plt.plot(t.numpy(),out.numpy(),'o-')
+
+#test_f_hyper_tensor()
 
 def simulateSignal_for_FID(tensor):
-    t=tf.constant([3,6,9,12,15,18], dtype=tf.float32)
+    t=tf.constant([3,6,9,12,15,18], dtype=tf.float32)/1000
     t.shape
     S0 = tensor[0]  #ln(S0)
     T2S = tensor[1]
@@ -252,7 +275,7 @@ def simulateSignal_for_FID(tensor):
 
 def simulateSignal_for_Echo_Peak_rise(tensor):
     # x[0] = S0, x[1] = T2, x[2] = T2S
-    t=tf.constant([21,24,27,30,33,36,39], dtype=tf.float32)
+    t=tf.constant([21,24,27,30,33,36,39], dtype=tf.float32)/1000
     S0 = tensor[0]
     T2 = tensor[1]
     T2S = tensor[2]
@@ -262,7 +285,7 @@ def simulateSignal_for_Echo_Peak_rise(tensor):
 
 def simulateSignal_for_Echo_Peak_fall(tensor):
     # x[0] = S0, x[1] = T2, x[2] = T2S
-    t=tf.constant([42,45,48], dtype=tf.float32)
+    t=tf.constant([42,45,48], dtype=tf.float32)/1000
     S0 = tensor[0]
     T2 = tensor[1]
     T2S = tensor[2]
@@ -270,6 +293,9 @@ def simulateSignal_for_Echo_Peak_fall(tensor):
     output = S0 * tf.math.exp(- (t-40.0)*(tf.math.divide_no_nan(1.0,T2S) - tf.math.divide_no_nan(1.0,T2)) - tf.math.divide_no_nan(t,T2) )
     return output
 
+
+
+#%%
 FID_Layer = layers.Lambda(simulateSignal_for_FID, name = 'FID')([dense_layer_3a,dense_layer_3c])
 Echo_Peak_rise_layer = layers.Lambda(simulateSignal_for_Echo_Peak_rise, name = 'SE_rise')([dense_layer_3a,dense_layer_3b,dense_layer_3c])
 Echo_Peak_fall_layer = layers.Lambda(simulateSignal_for_Echo_Peak_fall, name = 'SE_fall')([dense_layer_3a,dense_layer_3b,dense_layer_3c])
