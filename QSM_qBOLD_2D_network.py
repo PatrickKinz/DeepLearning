@@ -156,7 +156,7 @@ print("Test accuracy:", test_scores[1])
 #model_params.save("Model_2D_Params_before.h5")
 #"""
 # %%
-model_params = keras.models.load_model("Model_2D_Params_before.h5")
+model_params = keras.models.load_model("Model_2D_Params_before_qqbold.h5")
 model_params.summary()
 
 # %%
@@ -265,12 +265,44 @@ def test_f_hyper_tensor():
 
 def simulateSignal_for_FID(tensor):
     t=tf.constant([3,6,9,12,15,18], dtype=tf.float32)/1000
-    t.shape
-    S0 = tensor[0]  #ln(S0)
-    T2S = tensor[1]
-    #output = S0 - tf.math.divide_no_nan(t,T2S)
-    output = S0 * tf.math.exp(-tf.math.divide_no_nan(t,T2S))
+    a = tensor[0]  #ln(S0)
+    b = tensor[1]
+    c = tensor[2]
+    d = tensor[3]
+    e = tensor[4]
+    S0 = a   #S0     = 1000 + 200 * randn(N).T
+    R2 = (30-1) * b + 1
+    SaO2 = 0.98
+    Y  = (SaO2 - 0.01) * c + 0.01
+    nu = (0.1 - 0.001) * d + 0.001
+    chi_nb = ( 0.1-(-0.1) ) * e - 0.1
+    TE = 40/1000
+    Hct = 0.357
+    # Blood Hb volume fraction
+    psi_Hb = Hct*0.34/1.335
+    # Susceptibility of oxyhemoglobin in ppm
+    chi_oHb = -0.813
+    # Susceptibility of plasma in ppm
+    chi_p = -0.0377
+    # Susceptibility of fully oxygenated blood in ppm
+    chi_ba = psi_Hb*chi_oHb + (1-psi_Hb)*chi_p
+    #CF = gamma *B0
+    gamma = 267.513 #MHz/T
+    B0 = 3 #T
+    delta_chi0 = 4*np.pi*0.273 #in ppm
+    dw = 1./3 * gamma * B0* (Hct * delta_chi0 * (1-Y) + chi_ba - chi_nb )
+
+    output = S0 * tf.math.exp(-R2*t - nu*f_hyper_tensor(dw*t))
     return output
+Params_test.shape
+p.shape
+test_a = tf.convert_to_tensor(Params_test[2,:,:,0])
+test_b = tf.convert_to_tensor(Params_test[2,:,:,1])
+test_c = tf.convert_to_tensor(Params_test[2,:,:,2])
+test_d = tf.convert_to_tensor(Params_test[2,:,:,3])
+test_e = tf.convert_to_tensor(Params_test[2,:,:,4])
+
+out = simulateSignal_for_FID([test_a,test_b,test_c,test_d,test_e])
 
 
 def simulateSignal_for_Echo_Peak_rise(tensor):

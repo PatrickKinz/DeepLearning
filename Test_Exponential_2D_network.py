@@ -11,7 +11,7 @@ from sys import getsizeof
 
 # %%
 
-f = h5py.File("Exponential2D_bigger.hdf5", "r")
+f = h5py.File("data/Exponential2D_bigger.hdf5", "r")
 list(f.keys())
 dset_input_train = f["input_train"]
 dset_input_noise_train = f["input_noise_train"]
@@ -256,6 +256,7 @@ def simulateSignal_for_Echo_Peak_fall(tensor):
     output = S0 * tf.math.exp(- (t-40.0)*(tf.math.divide_no_nan(1.0,T2S) - tf.math.divide_no_nan(1.0,T2)) - tf.math.divide_no_nan(t,T2) )
     return output
 
+#%%
 FID_Layer = layers.Lambda(simulateSignal_for_FID, name = 'FID')([dense_layer_3a,dense_layer_3c])
 Echo_Peak_rise_layer = layers.Lambda(simulateSignal_for_Echo_Peak_rise, name = 'SE_rise')([dense_layer_3a,dense_layer_3b,dense_layer_3c])
 Echo_Peak_fall_layer = layers.Lambda(simulateSignal_for_Echo_Peak_fall, name = 'SE_fall')([dense_layer_3a,dense_layer_3b,dense_layer_3c])
