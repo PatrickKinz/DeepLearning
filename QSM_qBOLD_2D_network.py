@@ -12,8 +12,18 @@ from tqdm import tqdm  #for progress bar
 from QSM_qBOLD_2D_load_and_prepare_data import load_and_prepare_data
 
 #%%
-data_dir = "../Brain_Phantom/Patches/"
-Params_training,Params_test,qBOLD_training,qBOLD_test,QSM_training,QSM_test = load_and_prepare_data(data_dir)
+#data_dir = "../Brain_Phantom/Patches/"
+#Params_training,Params_test,qBOLD_training,qBOLD_test,QSM_training,QSM_test = load_and_prepare_data(data_dir)
+
+#np.savez("../Brain_Phantom/Patches/NumpyArchiv",Params_training=Params_training,Params_test=Params_test,qBOLD_training=qBOLD_training,qBOLD_test=qBOLD_test,QSM_training=QSM_training,QSM_test=QSM_test)
+Dataset=np.load("../Brain_Phantom/Patches/NumpyArchiv.npz")
+Dataset
+Params_training=Dataset['Params_training']
+Params_test=Dataset['Params_test']
+qBOLD_training=Dataset['qBOLD_training']
+qBOLD_test=Dataset['qBOLD_test']
+QSM_training=Dataset['QSM_training'
+QSM_test=Dataset['QSM_test']
 
 
 # %% Network
@@ -117,12 +127,13 @@ keras.utils.plot_model(model_params, show_shapes=True)
 # %% Train Params model
 opt = keras.optimizers.Adam(0.001, clipnorm=1.)
 model_params.compile(
-    loss=keras.losses.MeanAbsolutePercentageError(),
+    #loss=keras.losses.MeanAbsolutePercentageError(),
     #loss=keras.losses.MeanSquaredLogarithmicError(),
-    #loss=keras.losses.MeanSquaredError(),
+    loss=keras.losses.MeanSquaredError(),
     #loss=tf.keras.losses.Huber(),
     optimizer=opt,
     metrics=[tf.keras.metrics.MeanAbsolutePercentageError()],
+    #metrics=[tf.keras.metrics.MeanSquaredError()],
     #metrics=["accuracy"],
 )
 
