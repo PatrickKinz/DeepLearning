@@ -9,10 +9,11 @@ from numpy.random import rand, randn
 import matplotlib.pyplot as plt
 from tqdm import tqdm  #for progress bar
 
-from QSM_qBOLD_2D_load_and_prepare_data import load_data
+from QSM_qBOLD_2D_load_and_prepare_data import load_and_prepare_data
 
 #%%
-Params_training,Params_test,qBOLD_training,qBOLD_test,QSM_training,QSM_test = load_data()
+data_dir = "../Brain_Phantom/Patches/"
+Params_training,Params_test,qBOLD_training,qBOLD_test,QSM_training,QSM_test = load_and_prepare_data(data_dir)
 
 
 # %% Network
@@ -29,7 +30,7 @@ conv_qBOLD_p1 = keras.layers.Conv3D(n,
                   strides=1,
                   padding='valid',
                   dilation_rate=1,
-                  activation='relu',
+                  activation='sigmoid',
                   name='conv_qBOLD_p1')(input_qBOLD)
 
 conv_qBOLD_p2 = keras.layers.Conv3D(2*n,
@@ -37,7 +38,7 @@ conv_qBOLD_p2 = keras.layers.Conv3D(2*n,
                   strides=1,
                   padding='valid',
                   dilation_rate=1,
-                  activation='relu',
+                  activation='sigmoid',
                   name='conv_qBOLD_p2')(conv_qBOLD_p1)
 
 
@@ -46,7 +47,7 @@ conv_qBOLD_d1 = keras.layers.Conv3D(n,
                   strides=(2,2,1),
                   padding='same',
                   dilation_rate=1,
-                  activation='relu',
+                  activation='sigmoid',
                   name='conv_qBOLD_d1')(input_qBOLD)
 
 upSamp_qBOLD_1 = keras.layers.UpSampling3D(size=(2,2,1), name = 'upSamp_qBOLD_1'                   )(conv_qBOLD_d1)
@@ -57,7 +58,7 @@ conv_qBOLD_d2 = keras.layers.Conv3D(2*n,
                   strides=1,
                   padding='valid',
                   dilation_rate=1,
-                  activation='relu',
+                  activation='sigmoid',
                   name='conv_qBOLD_d2')(upSamp_qBOLD_1)
 
 concatenate_qBOLD = layers.Concatenate(name = 'Concat_qBOLD')([conv_qBOLD_p2,conv_qBOLD_d2])
@@ -73,7 +74,7 @@ conv_QSM_1 = keras.layers.Conv3D(8,
                   strides=(1,1,1),
                   padding='same',
                   dilation_rate=1,
-                  activation='relu',
+                  activation='sigmoid',
                   name='conv_QSM_1')(input_QSM)
 
 conv_QSM_2 = keras.layers.Conv3D(8,
@@ -81,7 +82,7 @@ conv_QSM_2 = keras.layers.Conv3D(8,
                   strides=(2,2,1),
                   padding='same',
                   dilation_rate=1,
-                  activation='relu',
+                  activation='sigmoid',
                   name='conv_QSM_2')(conv_QSM_1)
 
 upSamp_QSM_1 = keras.layers.UpSampling3D(size=(2,2,1), name = 'upSamp_QSM_1'                   )(conv_QSM_2)
@@ -114,14 +115,15 @@ keras.utils.plot_model(model_params, show_shapes=True)
 
 
 # %% Train Params model
-
+opt = keras.optimizers.Adam(0.001, clipnorm=1.)
 model_params.compile(
     loss=keras.losses.MeanAbsolutePercentageError(),
     #loss=keras.losses.MeanSquaredLogarithmicError(),
     #loss=keras.losses.MeanSquaredError(),
-    optimizer='adam',
-    #metrics=[tf.keras.metrics.MeanAbsolutePercentageError()],
-    metrics=["accuracy"],
+    #loss=tf.keras.losses.Huber(),
+    optimizer=opt,
+    metrics=[tf.keras.metrics.MeanAbsolutePercentageError()],
+    #metrics=["accuracy"],
 )
 
 #model_params.compile(optimizer='sgd', loss=tf.keras.losses.CosineSimilarity(axis=-2))
@@ -133,12 +135,12 @@ my_callbacks = [
 ]
 
 
-history = model_params.fit([qBOLD_training,QSM_training], Params_training , batch_size=128, epochs=1000, validation_split=0.2, callbacks=my_callbacks)
+history = model_params.fit([qBOLD_training,QSM_training], Params_training , batch_size=200, epochs=1000, validation_split=0.2, callbacks=my_callbacks)
 test_scores = model_params.evaluate([qBOLD_test,QSM_test], Params_test, verbose=2)
 print("Test loss:", test_scores[0])
 print("Test accuracy:", test_scores[1])
 
-
+#%%
 #model_params.save("Model_2D_Params_before.h5")
 """
 # %%

@@ -7,12 +7,12 @@ import SimpleITK as sitk
 from tqdm import tqdm  #for progress bar
 #%%
 #data_dir = "C:/Users/pk24/Documents/Programming/Brain_Phantom/Patches/"
-data_dir = "../Brain_Phantom/Patches/"
+#data_dir = "../Brain_Phantom/Patches/"
 def read_data(data_dir):
     file_list_Params=[]
     file_list_qBOLD=[]
     file_list_QSM=[]
-    for i in tqdm(range(100)): #42441
+    for i in tqdm(range(42441)): #42441
         file_number = "{0}".format(i).zfill(6)
         file_list_Params.append(data_dir+ "Params/Params_"+file_number+ ".TIF")
         file_list_qBOLD.append(data_dir + "qBOLD/qBOLD_"+file_number+ ".TIF")
@@ -28,10 +28,14 @@ def read_data(data_dir):
     QSM= np.expand_dims(QSM,axis=-1) #add one channel
     return Params,qBOLD,QSM
 
-Params,qBOLD,QSM = read_data(data_dir)
-print(Params.shape)
-print(qBOLD.shape)
-print(QSM.shape)
+#Params,qBOLD,QSM = read_data(data_dir)
+#print(Params.shape)
+#print(qBOLD.shape)
+#print(QSM.shape)
+#meanQSM = np.mean(QSM)
+#print(meanQSM)
+#meanabsQSM = np.mean(np.abs(QSM))
+#print(meanabsQSM)
 #%%
 """
 print(np.any(~np.isfinite(Params)))
@@ -63,11 +67,11 @@ Params_test[0,0:10,0]
 
 def shuffle_data(Params,qBOLD,QSM):
     idx = rand(Params.shape[0]).argsort()
-    idx.shape
+    #idx.shape
     #print(idx[0])
-    Params_shuffled = np.zeros(Params.shape)
-    qBOLD_shuffled = np.zeros(qBOLD.shape)
-    QSM_shuffled = np.zeros(QSM.shape)
+    Params_shuffled = np.zeros(Params.shape,dtype=np.float32)
+    qBOLD_shuffled = np.zeros(qBOLD.shape,dtype=np.float32)
+    QSM_shuffled = np.zeros(QSM.shape,dtype=np.float32)
     for i in tqdm(range(len(idx))):
         Params_shuffled[i,:,:,:] = Params[idx[i],:,:,:]
     for i in tqdm(range(len(idx))):
@@ -82,20 +86,19 @@ def add_noise_qBOLD(a,mu,sigma):
     #qBOLD signal is stored with amplitude 0.5, only positive numbers
     noise = np.random.normal(loc=mu,scale=sigma,size=a.shape)
     a = a + noise
-    return np.maximum(a,np.zeros(a.shape))
+    return np.array(np.maximum(a,np.zeros(a.shape,dtype=np.float32)),dtype=np.float32)
 
 def add_noise_QSM(a,mu,sigma):
     #QSM is close to zero, positive and negative
     noise = np.random.normal(loc=mu,scale=sigma,size=a.shape)
     a = a + noise
-    return a
+    return np.array(a,dtype=np.float32)
 
 def add_noise_data(Params,qBOLD,QSM):
     #Params are truth and dont get any noise
     qBOLD = add_noise_qBOLD(qBOLD,0,0.01) #signal 0.5
-    QSM = add_noise_QSM(QSM,0,0.001) #dont know the QSM signal level
+    QSM = add_noise_QSM(QSM,0,0.001) #mean(QSM) = 0.02,mean(abs(QSM))=0.05
     return Params,qBOLD,QSM
-
 #%%
 
 def norm_qBOLD(a):
@@ -110,7 +113,7 @@ def norm_data(Params,qBOLD,QSM):
 
 
 #%% split in training and test
-def split_training_test(Params,qBOLd,QSM,percentage=0.9):
+def split_training_test(Params,qBOLD,QSM,percentage=0.9):
     threshold = int(Params.shape[0]*percentage)
     Params_training= Params[:threshold,:,:,:]
     Params_test= Params[threshold:,:,:,:]
@@ -184,10 +187,19 @@ ax[3].imshow(input_noise_norm_test[700,:,:,1], cmap='Greys')
 
 
 """
-def load_and_prepare_data():
-    Params,qBOLD,QSM = read_data()
+def load_and_prepare_data(data_dir):
+    Params,qBOLD,QSM = read_data(data_dir)
+    #print(qBOLD.dtype)
     Params,qBOLD,QSM = shuffle_data(Params,qBOLD,QSM)
+    #print(qBOLD.dtype)
     Params,qBOLD,QSM = add_noise_data(Params,qBOLD,QSM)
-    Params,qBOLD,QSM = norm_data(Params,qBOLD,QSM)
+    #print(qBOLD.dtype)
+    #Params,qBOLD,QSM = norm_data(Params,qBOLD,QSM)
     Params_training,Params_test,qBOLD_training,qBOLD_test,QSM_training,QSM_test = split_training_test(Params,qBOLD,QSM)
+    #print(qBOLD_training.dtype)
     return Params_training,Params_test,qBOLD_training,qBOLD_test,QSM_training,QSM_test
+
+
+#%% Test
+#data_dir = "../Brain_Phantom/Patches/"
+#Params_training,Params_test,qBOLD_training,qBOLD_test,QSM_training,QSM_test = load_and_prepare_data(data_dir)
