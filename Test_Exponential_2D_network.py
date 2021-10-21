@@ -234,7 +234,17 @@ def simulateSignal_for_FID(tensor):
     #output = S0 - tf.math.divide_no_nan(t,T2S)
     output = S0 * tf.math.exp(-tf.math.divide_no_nan(t,T2S))
     return output
+"""
+This kind of test does not work because of Dimensions, but it works somehow in the network
+Incompatible shapes: [6] vs. [128,128] [Op:DivNoNan]
 
+test_S0 = tf.convert_to_tensor(target_test[2,:,:,0])
+test_S0.shape
+test_T2 = tf.convert_to_tensor(target_test[2,:,:,1])
+test_T2S = tf.convert_to_tensor(target_test[2,:,:,2])
+
+out = simulateSignal_for_FID([test_S0,test_T2,test_T2S])
+"""
 
 def simulateSignal_for_Echo_Peak_rise(tensor):
     """x[0] = S0, x[1] = T2, x[2] = T2S   """

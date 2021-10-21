@@ -62,4 +62,4 @@ def f_QSM(Y, nu, chi_nb ):
 
     a = (chi_ba/alpha +psi_Hb*delta_chi_Hb * ((1-(1-alpha)*SaO2)/alpha - Y) )*nu
     b = (1 - nu/alpha) * chi_nb
-    return np.array([a + b]).T
+    return np.array([a + b]).T #why transpose

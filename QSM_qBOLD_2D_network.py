@@ -110,35 +110,51 @@ dense_layer_1 = layers.Dense(48,name = 'Dense_1')(concatenate_layer)
 #dense_layer_2 = layers.Dense(96,name = 'Dense_2')(dense_layer_1)
 
 
-dense_layer_3a = layers.Dense(1,activation="sigmoid", name = 'Dense_3a_S0')(    dense_layer_1)
-dense_layer_3b = layers.Dense(1,activation="sigmoid", name = 'Dense_3b_R2')(    dense_layer_1)
-dense_layer_3c = layers.Dense(1,activation="sigmoid", name = 'Dense_3c_Y')(     dense_layer_1)
-dense_layer_3d = layers.Dense(1,activation="sigmoid", name = 'Dense_3d_nu')(    dense_layer_1)
-dense_layer_3e = layers.Dense(1,activation="sigmoid", name = 'Dense_3e_chi_nb')(dense_layer_1)
+dense_layer_3a = layers.Dense(1,activation="sigmoid", name = 'output_S0')(    dense_layer_1)
+dense_layer_3b = layers.Dense(1,activation="sigmoid", name = 'output_R2')(    dense_layer_1)
+dense_layer_3c = layers.Dense(1,activation="sigmoid", name = 'output_Y')(     dense_layer_1)
+dense_layer_3d = layers.Dense(1,activation="sigmoid", name = 'output_nu')(    dense_layer_1)
+dense_layer_3e = layers.Dense(1,activation="sigmoid", name = 'output_chi_nb')(dense_layer_1)
 
 #before_lambda_model = keras.Model(input_layer, dense_layer_3, name="before_lambda_model")
 
 Params_Layer = layers.concatenate(name = 'Output_Params',inputs=[dense_layer_3a,dense_layer_3b,dense_layer_3c,dense_layer_3d,dense_layer_3e],axis=-2)
 #Params_Layer = layers.Concatenate(name = 'Output_Params')([dense_layer_3b,dense_layer_3c])
-model_params = keras.Model(inputs=[input_qBOLD,input_QSM],outputs=Params_Layer,name="Params_model")
+model_params = keras.Model(inputs=[input_qBOLD,input_QSM],outputs=[dense_layer_3a,dense_layer_3b,dense_layer_3c,dense_layer_3d,dense_layer_3e],name="Params_model")
 model_params.summary()
 keras.utils.plot_model(model_params, show_shapes=True)
 
 
 # %% Train Params model
+
 opt = keras.optimizers.Adam(0.001, clipnorm=1.)
+loss=keras.losses.MeanAbsolutePercentageError()
+#loss=keras.losses.MeanSquaredLogarithmicError()
+#loss=keras.losses.MeanSquaredError()
+#loss=tf.keras.losses.Huber()
+losses = {
+    "output_S0":loss,
+    "output_R2":loss,
+    "output_Y":loss,
+    "output_nu":loss,
+    "output_chi_nb":loss,
+}
+lossWeights = {
+    "output_S0":1.0,
+    "output_R2":1.0,
+    "output_Y":1.0,
+    "output_nu":1.0,
+    "output_chi_nb":1.0,
+}
 model_params.compile(
-    #loss=keras.losses.MeanAbsolutePercentageError(),
-    #loss=keras.losses.MeanSquaredLogarithmicError(),
-    loss=keras.losses.MeanSquaredError(),
-    #loss=tf.keras.losses.Huber(),
+    loss=losses,
+    loss_weights=lossWeights,
     optimizer=opt,
     metrics=[tf.keras.metrics.MeanAbsolutePercentageError()],
     #metrics=[tf.keras.metrics.MeanSquaredError()],
     #metrics=["accuracy"],
 )
 
-#model_params.compile(optimizer='sgd', loss=tf.keras.losses.CosineSimilarity(axis=-2))
 
 my_callbacks = [
     tf.keras.callbacks.EarlyStopping(patience=2),
@@ -147,95 +163,105 @@ my_callbacks = [
 ]
 
 
-history = model_params.fit([qBOLD_training,QSM_training], Params_training , batch_size=200, epochs=1000, validation_split=0.2, callbacks=my_callbacks)
+S0_training = tf.expand_dims(Params_training[:,:,:,0],-1)
+R2_training = tf.expand_dims(Params_training[:,:,:,1],-1)
+Y_training = tf.expand_dims(Params_training[:,:,:,2],-1)
+nu_training = tf.expand_dims(Params_training[:,:,:,3],-1)
+chi_nb_training = tf.expand_dims(Params_training[:,:,:,4],-1)
+target_list = [S0_training,R2_training,Y_training,nu_training,chi_nb_training]
+
+history = model_params.fit([qBOLD_training,QSM_training], target_list , batch_size=200, epochs=1000, validation_split=0.2, callbacks=my_callbacks)
 test_scores = model_params.evaluate([qBOLD_test,QSM_test], Params_test, verbose=2)
 print("Test loss:", test_scores[0])
 print("Test accuracy:", test_scores[1])
 
 #%%
-#model_params.save("Model_2D_Params_before.h5")
-#"""
-# %%
-model_params = keras.models.load_model("Model_2D_Params_before_qqbold.h5")
-model_params.summary()
+#model_params.save("models/Model_2D_Params_before_qqbold.h5")
 
 # %%
+model_params = keras.models.load_model("Model_2D_Params_before_qqbold.h5")
+#model_params.summary()
 p = model_params.predict([qBOLD_test,QSM_test])
+p[0].shape
+#%%
+def check_Params(Params_test,p):
+    Number = 2
+    fig, axes = plt.subplots(nrows=2, ncols=5,figsize=(15,5))
+    ax = axes.ravel()
+    P0 = ax[0].imshow(Params_test[Number,:,:,0], cmap='Greys')
+    ax[0].title.set_text('a')
+    plt.colorbar(P0,ax=ax[0])
+    P1 = ax[1].imshow(Params_test[Number,:,:,1], cmap='Greys')
+    ax[1].title.set_text('b')
+    plt.colorbar(P1,ax=ax[1])
+    P2 = ax[2].imshow(Params_test[Number,:,:,2], cmap='Greys')
+    ax[2].title.set_text('c')
+    plt.colorbar(P2,ax=ax[2])
+    P3 = ax[3].imshow(Params_test[Number,:,:,3], cmap='Greys')
+    ax[3].title.set_text('d')
+    plt.colorbar(P3,ax=ax[3])
+    P4 = ax[4].imshow(Params_test[Number,:,:,4], cmap='Greys')
+    ax[4].title.set_text('e')
+    plt.colorbar(P4,ax=ax[4])
+    P5 = ax[5].imshow(np.squeeze(p[0][Number,:,:,:]), cmap='Greys')
+    plt.colorbar(P5,ax=ax[5])
+    P6 = ax[6].imshow(np.squeeze(p[1][Number,:,:,:]), cmap='Greys')
+    plt.colorbar(P6,ax=ax[6])
+    P7 = ax[7].imshow(np.squeeze(p[2][Number,:,:,:]), cmap='Greys')
+    plt.colorbar(P7,ax=ax[7])
+    P8 = ax[8].imshow(np.squeeze(p[3][Number,:,:,:]), cmap='Greys')
+    plt.colorbar(P8,ax=ax[8])
+    P9 = ax[9].imshow(np.squeeze(p[4][Number,:,:,:]), cmap='Greys')
+    plt.colorbar(P9,ax=ax[9])
+    plt.show()
+
+    fig, axes = plt.subplots(nrows=1, ncols=5,figsize=(15,5))
+    ax = axes.ravel()
+    ax[0].plot(Params_test[Number,15,:,0])
+    ax[0].plot(np.squeeze(p[0][Number,15,:,:]))
+    ax[0].title.set_text('a')
+    ax[1].plot(Params_test[Number,15,:,1])
+    ax[1].plot(np.squeeze(p[1][Number,15,:,:]))
+    ax[1].title.set_text('b')
+    ax[2].plot(Params_test[Number,15,:,2])
+    ax[2].plot(np.squeeze(p[2][Number,15,:,:]))
+    ax[2].title.set_text('c')
+    ax[3].plot(Params_test[Number,15,:,3])
+    ax[3].plot(np.squeeze(p[3][Number,15,:,:]))
+    ax[3].title.set_text('d')
+    ax[4].plot(Params_test[Number,15,:,4])
+    ax[4].plot(np.squeeze(p[4][Number,15,:,:]))
+    ax[4].title.set_text('e')
+    plt.show()
+
+
+    fig, axes = plt.subplots(nrows=2, ncols=5,figsize=(15,5))
+    ax = axes.ravel()
+    ax[0].hist(Params_test[Number,:,:,0].ravel())
+    ax[0].title.set_text('a')
+    ax[1].hist(Params_test[Number,:,:,1].ravel())
+    ax[1].title.set_text('b')
+    ax[2].hist(Params_test[Number,:,:,2].ravel())
+    ax[2].title.set_text('c')
+    ax[3].hist(Params_test[Number,:,:,3].ravel())
+    ax[3].title.set_text('d')
+    ax[4].hist(Params_test[Number,:,:,4].ravel())
+    ax[4].title.set_text('e')
+    ax[5].hist(np.squeeze(p[0][Number,:,:,:]).ravel())
+    ax[6].hist(np.squeeze(p[1][Number,:,:,:]).ravel())
+    ax[7].hist(np.squeeze(p[2][Number,:,:,:]).ravel())
+    ax[8].hist(np.squeeze(p[3][Number,:,:,:]).ravel())
+    ax[9].hist(np.squeeze(p[4][Number,:,:,:]).ravel())
+    plt.show()
+
+check_Params(Params_test,p)
 
 
 #%%
-Number = 2
-fig, axes = plt.subplots(nrows=2, ncols=5,figsize=(15,5))
-ax = axes.ravel()
-P0 = ax[0].imshow(Params_test[Number,:,:,0], cmap='Greys')
-ax[0].title.set_text('a')
-plt.colorbar(P0,ax=ax[0])
-P1 = ax[1].imshow(Params_test[Number,:,:,1], cmap='Greys')
-ax[1].title.set_text('b')
-plt.colorbar(P1,ax=ax[1])
-P2 = ax[2].imshow(Params_test[Number,:,:,2], cmap='Greys')
-ax[2].title.set_text('c')
-plt.colorbar(P2,ax=ax[2])
-P3 = ax[3].imshow(Params_test[Number,:,:,3], cmap='Greys')
-ax[3].title.set_text('d')
-plt.colorbar(P3,ax=ax[3])
-P4 = ax[4].imshow(Params_test[Number,:,:,4], cmap='Greys')
-ax[4].title.set_text('e')
-plt.colorbar(P4,ax=ax[4])
-P5 = ax[5].imshow(p[Number,:,:,0], cmap='Greys')
-plt.colorbar(P5,ax=ax[5])
-P6 = ax[6].imshow(p[Number,:,:,1], cmap='Greys')
-plt.colorbar(P6,ax=ax[6])
-P7 = ax[7].imshow(p[Number,:,:,2], cmap='Greys')
-plt.colorbar(P7,ax=ax[7])
-P8 = ax[8].imshow(p[Number,:,:,3], cmap='Greys')
-plt.colorbar(P8,ax=ax[8])
-P9 = ax[9].imshow(p[Number,:,:,4], cmap='Greys')
-plt.colorbar(P9,ax=ax[9])
-plt.show()
-
-# %%
-fig, axes = plt.subplots(nrows=1, ncols=5,figsize=(15,5))
-ax = axes.ravel()
-ax[0].plot(Params_test[Number,15,:,0])
-ax[0].plot(p[Number,15,:,0])
-ax[0].title.set_text('a')
-ax[1].plot(Params_test[Number,15,:,1])
-ax[1].plot(p[Number,15,:,1])
-ax[1].title.set_text('b')
-ax[2].plot(Params_test[Number,15,:,2])
-ax[2].plot(p[Number,15,:,2])
-ax[2].title.set_text('c')
-ax[3].plot(Params_test[Number,15,:,3])
-ax[3].plot(p[Number,15,:,3])
-ax[3].title.set_text('d')
-ax[4].plot(Params_test[Number,15,:,4])
-ax[4].plot(p[Number,15,:,4])
-ax[4].title.set_text('e')
-plt.show()
-
-# %%
-
-fig, axes = plt.subplots(nrows=2, ncols=5,figsize=(15,5))
-ax = axes.ravel()
-ax[0].hist(Params_test[Number,:,:,0].ravel())
-ax[0].title.set_text('a')
-ax[1].hist(Params_test[Number,:,:,1].ravel())
-ax[1].title.set_text('b')
-ax[2].hist(Params_test[Number,:,:,2].ravel())
-ax[2].title.set_text('c')
-ax[3].hist(Params_test[Number,:,:,3].ravel())
-ax[3].title.set_text('d')
-ax[4].hist(Params_test[Number,:,:,4].ravel())
-ax[4].title.set_text('e')
-ax[5].hist(p[Number,:,:,0].ravel())
-ax[6].hist(p[Number,:,:,1].ravel())
-ax[7].hist(p[Number,:,:,2].ravel())
-ax[8].hist(p[Number,:,:,3].ravel())
-ax[9].hist(p[Number,:,:,4].ravel())
-plt.show()
-
-
+Number=2
+QSM_test.shape
+plt.figure()
+plt.imshow(QSM_test[Number,:,:,0], cmap='Greys')
 
 # %%
 """ Second training step """
@@ -263,9 +289,8 @@ def test_f_hyper_tensor():
 
 #test_f_hyper_tensor()
 
-def simulateSignal_for_FID(tensor):
-    t=tf.constant([3,6,9,12,15,18], dtype=tf.float32)/1000
-    a = tensor[0]  #ln(S0)
+def f_qBOLD_tensor(tensor):
+    a = tensor[0]
     b = tensor[1]
     c = tensor[2]
     d = tensor[3]
@@ -292,49 +317,67 @@ def simulateSignal_for_FID(tensor):
     delta_chi0 = 4*np.pi*0.273 #in ppm
     dw = 1./3 * gamma * B0* (Hct * delta_chi0 * (1-Y) + chi_ba - chi_nb )
 
-    output = S0 * tf.math.exp(-R2*t - nu*f_hyper_tensor(dw*t))
-    return output
+    TE=40./1000
+    t_FID=tf.constant([3,6,9,12,15,18], dtype=tf.float32)/1000
+    output_FID = S0 * tf.math.exp(-R2*t_FID - nu*f_hyper_tensor(dw*t_FID))
+    t_Echo_rise=tf.constant([21,24,27,30,33,36,39], dtype=tf.float32)/1000
+    output_Echo_rise = S0 * tf.math.exp(-R2*t_Echo_rise - nu*f_hyper_tensor(dw*(TE-t_Echo_rise)))
+    t_Echo_fall=tf.constant([42,45,48], dtype=tf.float32)/1000
+    output_Echo_fall = S0 * tf.math.exp(-R2*t_Echo_fall - nu*f_hyper_tensor(dw*(t_Echo_fall-TE)))
+    return tf.concat([output_FID,output_Echo_rise,output_Echo_fall],axis=-1)
+"""
+This kind of test does not work because of Dimensions, but it works somehow in the network
+Incompatible shapes: [30,30] vs. [6] [Op:Mul]
+
+
 Params_test.shape
 p.shape
 test_a = tf.convert_to_tensor(Params_test[2,:,:,0])
+test_a.shape
 test_b = tf.convert_to_tensor(Params_test[2,:,:,1])
 test_c = tf.convert_to_tensor(Params_test[2,:,:,2])
 test_d = tf.convert_to_tensor(Params_test[2,:,:,3])
 test_e = tf.convert_to_tensor(Params_test[2,:,:,4])
 
 out = simulateSignal_for_FID([test_a,test_b,test_c,test_d,test_e])
+"""
 
+def f_QSM_tensor(tensor):
+    c = tensor[0]
+    d = tensor[1]
+    e = tensor[2]
 
-def simulateSignal_for_Echo_Peak_rise(tensor):
-    # x[0] = S0, x[1] = T2, x[2] = T2S
-    t=tf.constant([21,24,27,30,33,36,39], dtype=tf.float32)/1000
-    S0 = tensor[0]
-    T2 = tensor[1]
-    T2S = tensor[2]
-    #output = S0 - (40.0-t)*(tf.math.divide_no_nan(1.0,T2S) - tf.math.divide_no_nan(1.0,T2)) - tf.math.divide_no_nan(t,T2)
-    output = S0 * tf.math.exp(- (40.0-t)*(tf.math.divide_no_nan(1.0,T2S) - tf.math.divide_no_nan(1.0,T2)) - tf.math.divide_no_nan(t,T2) )
-    return output
+    Hct = 0.357
+    SaO2 = 0.98
+    # Ratio of deoxygenated and total blood volume
+    alpha = 0.77;
+    # Susceptibility difference between dHb and Hb in ppm
+    delta_chi_Hb = 12.522;
+    # Blood Hb volume fraction
+    psi_Hb = Hct*0.34/1.335
+    # Susceptibility of oxyhemoglobin in ppm
+    chi_oHb = -0.813
+    # Susceptibility of plasma in ppm
+    chi_p = -0.0377
+    # Susceptibility of fully oxygenated blood in ppm
+    chi_ba = psi_Hb*chi_oHb + (1-psi_Hb)*chi_p
 
-def simulateSignal_for_Echo_Peak_fall(tensor):
-    # x[0] = S0, x[1] = T2, x[2] = T2S
-    t=tf.constant([42,45,48], dtype=tf.float32)/1000
-    S0 = tensor[0]
-    T2 = tensor[1]
-    T2S = tensor[2]
-    #output = S0 - (t-40.0)*(tf.math.divide_no_nan(1.0,T2S) - tf.math.divide_no_nan(1.0,T2)) - tf.math.divide_no_nan(t,T2)
-    output = S0 * tf.math.exp(- (t-40.0)*(tf.math.divide_no_nan(1.0,T2S) - tf.math.divide_no_nan(1.0,T2)) - tf.math.divide_no_nan(t,T2) )
-    return output
+    Y  = (SaO2 - 0.01) * c + 0.01
+    nu = (0.1 - 0.001) * d + 0.001
+    chi_nb = ( 0.1-(-0.1) ) * e - 0.1
 
+    Summand1 = (chi_ba/alpha +psi_Hb*delta_chi_Hb * ((1-(1-alpha)*SaO2)/alpha - Y) )*nu
+    Summand2 = (1 - nu/alpha) * chi_nb
+
+    return Summand1+Summand2 #np.array version is np.array([a+b]).T, maybe transpose here too
 
 
 #%%
-FID_Layer = layers.Lambda(simulateSignal_for_FID, name = 'FID')([dense_layer_3a,dense_layer_3c])
-Echo_Peak_rise_layer = layers.Lambda(simulateSignal_for_Echo_Peak_rise, name = 'SE_rise')([dense_layer_3a,dense_layer_3b,dense_layer_3c])
-Echo_Peak_fall_layer = layers.Lambda(simulateSignal_for_Echo_Peak_fall, name = 'SE_fall')([dense_layer_3a,dense_layer_3b,dense_layer_3c])
-output_layer = layers.Concatenate(name = 'Output_layer')([FID_Layer,Echo_Peak_rise_layer,Echo_Peak_fall_layer])
+qBOLD_layer = layers.Lambda(f_qBOLD_tensor, name = 'qBOLD')([dense_layer_3a,dense_layer_3b,dense_layer_3c,dense_layer_3d,dense_layer_3e])
+QSM_layer = layers.Lambda(f_QSM_tensor, name = 'QSM')([dense_layer_3c,dense_layer_3d,dense_layer_3e])
 
 
-model = keras.Model(inputs=input_layer,outputs=output_layer,name="Lambda_model")
+model = keras.Model(inputs=[input_qBOLD,input_QSM],outputs=[qBOLD_layer,QSM_layer],name="Lambda_model")
 model.summary()
 keras.utils.plot_model(model, show_shapes=True)
 
@@ -342,7 +385,8 @@ keras.utils.plot_model(model, show_shapes=True)
 model.compile(
     loss=keras.losses.MeanSquaredError(),
     optimizer='adam',
-    metrics=["accuracy"],
+    metrics=[tf.keras.metrics.MeanAbsolutePercentageError()],
+    #metrics=["accuracy"],
 )
 
 my_callbacks = [
@@ -350,49 +394,102 @@ my_callbacks = [
     #tf.keras.callbacks.ModelCheckpoint(filepath='model.{epoch:02d}-{val_loss:.2f}.h5'),
     #tf.keras.callbacks.TensorBoard(log_dir='./logs/2021_07_15-1330')
 ]
+history = model.fit([qBOLD_training,QSM_training], [tf.expand_dims(qBOLD_training,axis=3),tf.expand_dims(QSM_training,axis=3)] , batch_size=200, epochs=1000, validation_split=0.2, callbacks=my_callbacks)
 
-history = model.fit(input_noise_norm_train, input_noise_norm_train, batch_size=20, epochs=50, validation_split=0.2, callbacks=my_callbacks)
-#test_scores = model.evaluate(input_noise_norm_test, signal_test, verbose=2)
-test_scores = model.evaluate(input_noise_norm_test, input_noise_norm_test, verbose=2)
+test_scores = model.evaluate([qBOLD_test,QSM_test],  [tf.expand_dims(qBOLD_test,axis=3),tf.expand_dims(QSM_test,axis=3)], verbose=2)
+#qBOLD_test.shape
+#qBOLD_test2 = tf.expand_dims(qBOLD_test,axis=3)
+#qBOLD_test2.shape
 print("Test loss:", test_scores[0])
 print("Test accuracy:", test_scores[1])
-test_scores_params = model_params.evaluate(input_noise_norm_test, target_test, verbose=2)
+test_scores_params = model_params.evaluate([qBOLD_test,QSM_test], Params_test, verbose=2)
 
-model_params.save("Model_2D_Params_after.h5")
-model.save("Model_2D_Full.h5")
+model_params.save("models/Model_2D_Params_after_qqbold.h5")
+model.save("models/Model_2D_Full_qqbold.h5")
 
 
 # %%
-p_after = model_params.predict(input_noise_norm_test)
 
-Number = 1
+p_after = model_params.predict([qBOLD_test,QSM_test])
 
-fig, axes = plt.subplots(nrows=2, ncols=3)
-ax = axes.ravel()
-ax[0].imshow(target_test[Number,:,:,0], cmap='Greys')
-ax[0].title.set_text('S0')
-ax[1].imshow(target_test[Number,:,:,1], cmap='Greys')
-ax[1].title.set_text('T2')
-ax[2].imshow(target_test[Number,:,:,2], cmap='Greys')
-ax[2].title.set_text('T2S')
-ax[3].imshow(p_after[Number,:,:,0], cmap='Greys')
-#ax[3].title.set_text('S0')
-ax[4].imshow(p_after[Number,:,:,1], cmap='Greys')
-#ax[4].title.set_text('T2')
-ax[5].imshow(p_after[Number,:,:,2], cmap='Greys')
-#ax[5].title.set_text('T2S')
-plt.show()
-# %%
-fig, axes = plt.subplots(nrows=1, ncols=3)
-ax = axes.ravel()
-ax[0].plot(target_test[Number,64,:,0])
-ax[0].plot(p_after[Number,64,:,0])
-ax[0].title.set_text('S0')
-ax[1].plot(target_test[Number,64,:,1])
-ax[1].plot(p_after[Number,64,:,1])
-ax[1].title.set_text('T2')
-ax[2].plot(target_test[Number,64,:,2])
-ax[2].plot(p_after[Number,64,:,2])
-ax[2].title.set_text('T2S')
-plt.show()
-#"""
+Number = 2
+
+check_Params(Params_test,p_after)
+
+#%%
+def check_QSM(t,p): #target prediction
+    Number = 2
+    fig, axes = plt.subplots(nrows=2, ncols=1)
+    ax = axes.ravel()
+    P0=ax[0].imshow(t[Number,:,:,0], cmap='Greys')
+    ax[0].title.set_text('QSM')
+    plt.colorbar(P0,ax=ax[0])
+    P1=ax[1].imshow(p[Number,:,:,0,0], cmap='Greys')
+    #ax[1].title.set_text('QSM_pred')
+    plt.colorbar(P1,ax=ax[1])
+    plt.show()
+
+p_full = model.predict([qBOLD_test,QSM_test])
+QSM_test.shape
+len(p_full)
+p_full[1].shape
+check_QSM(QSM_test,p_full[1])
+
+
+#%%
+def check_qBOLD(t,p): #target prediction
+    Number = 2
+    fig, axes = plt.subplots(nrows=2, ncols=5,figsize=(15,5))
+    ax = axes.ravel()
+
+    P0=ax[0].imshow(t[Number,:,:,0], cmap='Greys')
+    ax[0].title.set_text('3ms')
+    #plt.colorbar(P0,ax=ax[0])
+    P0.set_clim(.3,.6)
+
+    P1=ax[1].imshow(t[Number,:,:,3], cmap='Greys')
+    ax[1].title.set_text('9ms')
+    #plt.colorbar(P1,ax=ax[1])
+    P1.set_clim(.3,.6)
+
+    P2=ax[2].imshow(t[Number,:,:,7], cmap='Greys')
+    ax[2].title.set_text('21ms')
+    #plt.colorbar(P2,ax=ax[2])
+    P2.set_clim(.3,.6)
+
+    P3=ax[3].imshow(t[Number,:,:,11], cmap='Greys')
+    ax[3].title.set_text('33ms')
+    #plt.colorbar(P3,ax=ax[3])
+    P3.set_clim(.3,.6)
+
+    P4=ax[4].imshow(t[Number,:,:,15], cmap='Greys')
+    ax[4].title.set_text('45ms')
+    plt.colorbar(P4,ax=ax[4])
+    P4.set_clim(.3,.6)
+
+    P5=ax[5].imshow(p[Number,:,:,0,0], cmap='Greys')
+    #plt.colorbar(P5,ax=ax[5])
+    P5.set_clim(.3,.6)
+
+    P6=ax[6].imshow(p[Number,:,:,0,3], cmap='Greys')
+    #plt.colorbar(P6,ax=ax[6])
+    P6.set_clim(.3,.6)
+
+    P7=ax[7].imshow(p[Number,:,:,0,7], cmap='Greys')
+    #plt.colorbar(P7,ax=ax[7])
+    P7.set_clim(.3,.6)
+
+    P8=ax[8].imshow(p[Number,:,:,0,11], cmap='Greys')
+    #plt.colorbar(P8,ax=ax[8])
+    P8.set_clim(.3,.6)
+
+    P9=ax[9].imshow(p[Number,:,:,0,15], cmap='Greys')
+    plt.colorbar(P9,ax=ax[9])
+    P9.set_clim(.3,.6)
+    plt.show()
+
+
+qBOLD_test.shape
+len(p_full)
+p_full[0].shape
+check_qBOLD(qBOLD_test,p_full[0])
