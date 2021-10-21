@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm  #for progress bar
 
 import h5py
-from QSM_qBOLD_2D_load_and_prepare_data import load_and_prepare_data
+#from QSM_qBOLD_2D_load_and_prepare_data import load_and_prepare_data
 
 #%%
 #data_dir = "../Brain_Phantom/Patches/"
@@ -155,7 +155,7 @@ model_params.compile(
     #metrics=["accuracy"],
 )
 
-
+#%%
 my_callbacks = [
     tf.keras.callbacks.EarlyStopping(patience=2),
     #tf.keras.callbacks.ModelCheckpoint(filepath='model.{epoch:02d}-{val_loss:.2f}.h5'),
@@ -176,10 +176,10 @@ print("Test loss:", test_scores[0])
 print("Test accuracy:", test_scores[1])
 
 #%%
-#model_params.save("models/Model_2D_Params_before_qqbold.h5")
+model_params.save("models/Model_2D_Params_before_qqbold.h5")
 
 # %%
-model_params = keras.models.load_model("Model_2D_Params_before_qqbold.h5")
+model_params = keras.models.load_model("models/Model_2D_Params_before_qqbold.h5")
 #model_params.summary()
 p = model_params.predict([qBOLD_test,QSM_test])
 p[0].shape

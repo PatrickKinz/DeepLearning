@@ -199,7 +199,7 @@ def load_and_prepare_data(data_dir):
     #print(qBOLD_training.dtype)
     return Params_training,Params_test,qBOLD_training,qBOLD_test,QSM_training,QSM_test
 
-
-#%% Test
+#%% 
 #data_dir = "../Brain_Phantom/Patches/"
 #Params_training,Params_test,qBOLD_training,qBOLD_test,QSM_training,QSM_test = load_and_prepare_data(data_dir)
+#np.savez("../Brain_Phantom/Patches/NumpyArchiv",Params_training=Params_training,Params_test=Params_test,qBOLD_training=qBOLD_training,qBOLD_test=qBOLD_test,QSM_training=QSM_training,QSM_test=QSM_test)
