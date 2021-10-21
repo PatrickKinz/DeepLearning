@@ -208,7 +208,7 @@ def create_images(seg):
     for i in range(seg.GetDepth()):
         #crop empty area around brain
         seg_slice = threshold_based_crop(sitk.GetImageFromArray(nda_seg[i,:,:]))
-        nda_seg_slice = sitk.GetArrayViewFromImage(seg_slice)
+        nda_seg_slice = sitk.GetArrayFromImage(seg_slice)
         patch_size = 30 # pixel
         step_size = 10 #pixel
         for x in range(0,nda_seg_slice.shape[0]-patch_size,step_size):
