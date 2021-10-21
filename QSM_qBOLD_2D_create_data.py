@@ -234,8 +234,6 @@ def create_images(seg):
                 Y  = (SaO2 - 0.01) * c + 0.01   #from 1% to 98%
                 nu = (0.1 - 0.001) * d + 0.001  #from 0.1% to 10%
                 chi_nb = ( 0.1-(-0.1) ) * e - 0.1 #from -0.1 ppb to 0.1 ppb
-                qBOLD = QQ.f_qBOLD(S0,R2,Y,nu,chi_nb,t)
-                QSM = QQ.f_QSM(Y,nu,chi_nb)
                 """ Special cases for air and CSF """
                 # type[0] air
                 a[0]=b[0]=c[0]=d[0]=e[0] = 0
@@ -258,6 +256,10 @@ def create_images(seg):
                 #nu[3] = 0
                 #chi_nb[3] = 0
                 """
+                """calculate qBOLD and QSM """
+                qBOLD = QQ.f_qBOLD(S0,R2,Y,nu,chi_nb,t)
+                QSM = QQ.f_QSM(Y,nu,chi_nb)
+
                 #put them in the patch
                 patch_Params = np.zeros((5,nda_seg_patch.shape[0],nda_seg_patch.shape[1]),dtype=np.float32)
                 #print(patch_Params.shape)
