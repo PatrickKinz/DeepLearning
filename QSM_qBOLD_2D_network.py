@@ -110,11 +110,11 @@ dense_layer_1 = layers.Dense(48,name = 'Dense_1')(concatenate_layer)
 #dense_layer_2 = layers.Dense(96,name = 'Dense_2')(dense_layer_1)
 
 
-dense_layer_3a = layers.Dense(1,activation="sigmoid", name = 'output_S0')(    dense_layer_1)
-dense_layer_3b = layers.Dense(1,activation="sigmoid", name = 'output_R2')(    dense_layer_1)
-dense_layer_3c = layers.Dense(1,activation="sigmoid", name = 'output_Y')(     dense_layer_1)
-dense_layer_3d = layers.Dense(1,activation="sigmoid", name = 'output_nu')(    dense_layer_1)
-dense_layer_3e = layers.Dense(1,activation="sigmoid", name = 'output_chi_nb')(dense_layer_1)
+dense_layer_3a = layers.Dense(1,activation="sigmoid", name = 'S0')(    dense_layer_1)
+dense_layer_3b = layers.Dense(1,activation="sigmoid", name = 'R2')(    dense_layer_1)
+dense_layer_3c = layers.Dense(1,activation="sigmoid", name = 'Y')(     dense_layer_1)
+dense_layer_3d = layers.Dense(1,activation="sigmoid", name = 'nu')(    dense_layer_1)
+dense_layer_3e = layers.Dense(1,activation="sigmoid", name = 'chi_nb')(dense_layer_1)
 
 #before_lambda_model = keras.Model(input_layer, dense_layer_3, name="before_lambda_model")
 
@@ -133,18 +133,18 @@ opt = keras.optimizers.Adam(0.001, clipnorm=1.)
 loss=keras.losses.MeanSquaredError()
 #loss=tf.keras.losses.Huber()
 losses = {
-    "output_S0":loss,
-    "output_R2":loss,
-    "output_Y":loss,
-    "output_nu":loss,
-    "output_chi_nb":loss,
+    "S0":loss,
+    "R2":loss,
+    "Y":loss,
+    "nu":loss,
+    "chi_nb":loss,
 }
 lossWeights = {
-    "output_S0":1.0,
-    "output_R2":1.0,
-    "output_Y":1.0,
-    "output_nu":1.0,
-    "output_chi_nb":1.0,
+    "S0":1.0,
+    "R2":1.0,
+    "Y":1.0,
+    "nu":1.0,
+    "chi_nb":1.0,
 }
 model_params.compile(
     loss=losses,
@@ -170,7 +170,7 @@ nu_training = tf.expand_dims(Params_training[:,:,:,3],-1)
 chi_nb_training = tf.expand_dims(Params_training[:,:,:,4],-1)
 training_list = [S0_training,R2_training,Y_training,nu_training,chi_nb_training]
 
-history = model_params.fit([qBOLD_training,QSM_training], training_list , batch_size=100, epochs=1000, validation_split=0.2, callbacks=my_callbacks)
+history_params = model_params.fit([qBOLD_training,QSM_training], training_list , batch_size=100, epochs=1000, validation_split=0.2, callbacks=my_callbacks)
 
 S0_test = tf.expand_dims(Params_test[:,:,:,0],-1)
 R2_test = tf.expand_dims(Params_test[:,:,:,1],-1)
@@ -183,12 +183,30 @@ test_list = [S0_test,R2_test,Y_test,nu_test,chi_nb_test]
 test_scores = model_params.evaluate([qBOLD_test,QSM_test], test_list, verbose=2)
 print("Test loss:", test_scores[0])
 print("Test accuracy:", test_scores[1])
+#%%
+print(history_params.history.keys())
+def plot_loss(history, keyword):
+    plt.figure()
+    plt.plot(history.history[keyword + 'loss'])
+    plt.plot(history.history['val_'+keyword+'loss'])
+    plt.yscale('log')
+    plt.title('model ' +keyword+ 'loss')
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'validation'], loc='upper left')
+    plt.show()
+
+plot_loss(history_params,'')
+plot_loss(history_params,'S0_')
+plot_loss(history_params,'Y_')
+plot_loss(history_params,'nu_')
+plot_loss(history_params,'chi_nb_')
 
 #%%
 model_params.save("models/"+version+ "Model_2D_Params_before_qqbold.h5")
 
 # %%
-model_params = keras.models.load_model("models/"+version+ "Model_2D_Params_before_qqbold.h5")
+#model_params = keras.models.load_model("models/"+version+ "Model_2D_Params_before_qqbold.h5")
 #model_params.summary()
 p = model_params.predict([qBOLD_test,QSM_test])
 p[0].shape
@@ -333,7 +351,7 @@ def f_qBOLD_tensor(tensor):
     output_Echo_rise = S0 * tf.math.exp(-R2*t_Echo_rise - nu*f_hyper_tensor(dw*(TE-t_Echo_rise)))
     t_Echo_fall=tf.constant([42,45,48], dtype=tf.float32)/1000
     output_Echo_fall = S0 * tf.math.exp(-R2*t_Echo_fall - nu*f_hyper_tensor(dw*(t_Echo_fall-TE)))
-    return tf.concat([output_FID,output_Echo_rise,output_Echo_fall],axis=-1)
+    return tf.squeeze(tf.concat([output_FID,output_Echo_rise,output_Echo_fall],axis=-1),[-2])
 """
 This kind of test does not work because of Dimensions, but it works somehow in the network
 Incompatible shapes: [30,30] vs. [6] [Op:Mul]
@@ -378,13 +396,15 @@ def f_QSM_tensor(tensor):
     Summand1 = (chi_ba/alpha +psi_Hb*delta_chi_Hb * ((1-(1-alpha)*SaO2)/alpha - Y) )*nu
     Summand2 = (1 - nu/alpha) * chi_nb
 
-    return Summand1+Summand2 #np.array version is np.array([a+b]).T, maybe transpose here too
+    return tf.squeeze(Summand1+Summand2,[-2]) #np.array version is np.array([a+b]).T, maybe transpose here too
 
 
 #%%
-qBOLD_layer = layers.Lambda(f_qBOLD_tensor, name = 'qBOLD')([dense_layer_3a,dense_layer_3b,dense_layer_3c,dense_layer_3d,dense_layer_3e])
-QSM_layer = layers.Lambda(f_QSM_tensor, name = 'QSM')([dense_layer_3c,dense_layer_3d,dense_layer_3e])
-
+#qBOLD_layer = layers.Lambda(f_qBOLD_tensor, name = 'qBOLD')([dense_layer_3a,dense_layer_3b,dense_layer_3c,dense_layer_3d,dense_layer_3e])
+qBOLD_layer = layers.Lambda(f_qBOLD_tensor, name = 'qBOLD')(model_params.output)
+#QSM_layer = layers.Lambda(f_QSM_tensor, name = 'QSM')([dense_layer_3c,dense_layer_3d,dense_layer_3e])
+QSM_layer = layers.Lambda(f_QSM_tensor, name = 'QSM')(model_params.output[2:5])
+model_params.output[2:5]
 
 model = keras.Model(inputs=[input_qBOLD,input_QSM],outputs=[qBOLD_layer,QSM_layer],name="Lambda_model")
 model.summary()
@@ -399,13 +419,13 @@ model.compile(
 )
 
 my_callbacks = [
-    tf.keras.callbacks.EarlyStopping(patience=2),
+    tf.keras.callbacks.EarlyStopping(patience=3),
     #tf.keras.callbacks.ModelCheckpoint(filepath='model.{epoch:02d}-{val_loss:.2f}.h5'),
     #tf.keras.callbacks.TensorBoard(log_dir='./logs/2021_07_15-1330')
 ]
-history = model.fit([qBOLD_training,QSM_training], [tf.expand_dims(qBOLD_training,axis=3),tf.expand_dims(QSM_training,axis=3)] , batch_size=100, epochs=1000, validation_split=0.2, callbacks=my_callbacks)
+history = model.fit([qBOLD_training,QSM_training], [qBOLD_training,QSM_training] , batch_size=100, epochs=1000, validation_split=0.2, callbacks=my_callbacks)
 
-test_scores = model.evaluate([qBOLD_test,QSM_test],  [tf.expand_dims(qBOLD_test,axis=3),tf.expand_dims(QSM_test,axis=3)], verbose=2)
+test_scores = model.evaluate([qBOLD_test,QSM_test],  [qBOLD_test,QSM_test], verbose=2)
 #qBOLD_test.shape
 #qBOLD_test2 = tf.expand_dims(qBOLD_test,axis=3)
 #qBOLD_test2.shape
@@ -416,9 +436,13 @@ test_scores_params = model_params.evaluate([qBOLD_test,QSM_test], Params_test, v
 model_params.save("models/"+version+ "Model_2D_Params_after_qqbold.h5")
 model.save("models/"+version+ "Model_2D_Full_qqbold.h5")
 
-
 # %%
+print(history.history.keys())
+plot_loss(history,'')
+plot_loss(history,'qBOLD_')
+plot_loss(history,'QSM_')
 
+#%%
 p_after = model_params.predict([qBOLD_test,QSM_test])
 #%%
 Number = 2
@@ -432,7 +456,7 @@ def check_QSM(t,p,Number): #target prediction
     P0=ax[0].imshow(t[Number,:,:,0], cmap='gray')
     ax[0].title.set_text('QSM')
     plt.colorbar(P0,ax=ax[0])
-    P1=ax[1].imshow(p[Number,:,:,0,0], cmap='gray')
+    P1=ax[1].imshow(p[Number,:,:,0], cmap='gray')
     #ax[1].title.set_text('QSM_pred')
     plt.colorbar(P1,ax=ax[1])
     plt.show()
@@ -474,23 +498,23 @@ def check_qBOLD(t,p,Number): #target prediction
     plt.colorbar(P4,ax=ax[4])
     P4.set_clim(.0,.6)
 
-    P5=ax[5].imshow(p[Number,:,:,0,0], cmap='gray')
+    P5=ax[5].imshow(p[Number,:,:,0], cmap='gray')
     #plt.colorbar(P5,ax=ax[5])
     P5.set_clim(.0,.6)
 
-    P6=ax[6].imshow(p[Number,:,:,0,3], cmap='gray')
+    P6=ax[6].imshow(p[Number,:,:,3], cmap='gray')
     #plt.colorbar(P6,ax=ax[6])
     P6.set_clim(.0,.6)
 
-    P7=ax[7].imshow(p[Number,:,:,0,7], cmap='gray')
+    P7=ax[7].imshow(p[Number,:,:,7], cmap='gray')
     #plt.colorbar(P7,ax=ax[7])
     P7.set_clim(.0,.6)
 
-    P8=ax[8].imshow(p[Number,:,:,0,11], cmap='gray')
+    P8=ax[8].imshow(p[Number,:,:,11], cmap='gray')
     #plt.colorbar(P8,ax=ax[8])
     P8.set_clim(.0,.6)
 
-    P9=ax[9].imshow(p[Number,:,:,0,15], cmap='gray')
+    P9=ax[9].imshow(p[Number,:,:,15], cmap='gray')
     plt.colorbar(P9,ax=ax[9])
     P9.set_clim(.0,.6)
     plt.show()
@@ -513,38 +537,43 @@ def check_Pixel(target,prediction,QSM_t,QSM_p,Number):
     fig, axes = plt.subplots(nrows=1, ncols=2,figsize=(10,5))
     ax = axes.ravel()
     ax[0].plot(t,target[Number,5,15,:],"o-r")
-    ax[0].plot(t,prediction[Number,5,15,0,:],"o-b")
+    ax[0].plot(t,prediction[Number,5,15,:],"o-b")
+    ax[0].set_ylim(0,1)
     ax[1].plot("QSM",QSM_t[Number,5,15,0],"or")
-    ax[1].plot("QSM",QSM_p[Number,5,15,0,0],"ob")
+    ax[1].plot("QSM",QSM_p[Number,5,15,0],"ob")
     plt.show()
     fig, axes = plt.subplots(nrows=1, ncols=2,figsize=(10,5))
     ax = axes.ravel()
     ax[0].plot(t,target[Number,10,15,:],"o-r")
-    ax[0].plot(t,prediction[Number,10,15,0,:],"o-b")
+    ax[0].plot(t,prediction[Number,10,15,:],"o-b")
+    ax[0].set_ylim(0,1)
     ax[1].plot("QSM",QSM_t[Number,10,15,0],"or")
-    ax[1].plot("QSM",QSM_p[Number,10,15,0,0],"ob")
+    ax[1].plot("QSM",QSM_p[Number,10,15,0],"ob")
     plt.show(    )
     fig, axes = plt.subplots(nrows=1, ncols=2,figsize=(10,5))
     ax = axes.ravel()
     ax[0].plot(t,target[Number,15,15,:],"o-r")
-    ax[0].plot(t,prediction[Number,15,15,0,:],"o-b")
+    ax[0].plot(t,prediction[Number,15,15,:],"o-b")
+    ax[0].set_ylim(0,1)
     ax[1].plot("QSM",QSM_t[Number,15,15,0],"or")
-    ax[1].plot("QSM",QSM_p[Number,15,15,0,0],"ob")
+    ax[1].plot("QSM",QSM_p[Number,15,15,0],"ob")
     plt.show()
     fig, axes = plt.subplots(nrows=1, ncols=2,figsize=(10,5))
     ax = axes.ravel()
     ax[0].plot(t,target[Number,20,15,:],"o-r")
-    ax[0].plot(t,prediction[Number,20,15,0,:],"o-b")
+    ax[0].plot(t,prediction[Number,20,15,:],"o-b")
+    ax[0].set_ylim(0,1)
     ax[1].plot("QSM",QSM_t[Number,20,15,0],"or")
-    ax[1].plot("QSM",QSM_p[Number,20,15,0,0],"ob")
+    ax[1].plot("QSM",QSM_p[Number,20,15,0],"ob")
     plt.show()
     fig, axes = plt.subplots(nrows=1, ncols=2,figsize=(10,5))
     ax = axes.ravel()
     ax[0].plot(t,target[Number,25,15,:],"o-r")
-    ax[0].plot(t,prediction[Number,25,15,0,:],"o-b")
+    ax[0].plot(t,prediction[Number,25,15,:],"o-b")
+    ax[0].set_ylim(0,1)
     ax[1].plot("QSM",QSM_t[Number,25,15,0],"or")
-    ax[1].plot("QSM",QSM_p[Number,25,15,0,0],"ob")
+    ax[1].plot("QSM",QSM_p[Number,25,15,0],"ob")
     plt.show()
 
-Number=5
+Number=2
 check_Pixel(qBOLD_test,p_full[0],QSM_test,p_full[1],Number)
