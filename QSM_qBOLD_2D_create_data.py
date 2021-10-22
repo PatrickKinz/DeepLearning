@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from numpy.random import rand, randn, random
+from numpy.random import rand, randn, random, uniform
 from tqdm import tqdm  #for progress bar
 import SimpleITK as sitk
 import QSM_and_qBOLD_functions as QQ
@@ -221,7 +221,8 @@ def create_images(seg):
                 N_tissues=18 #Abnormal_WM not included
                 t=np.array([3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48])/1000
 
-                a=0.5*np.ones(N_tissues) #S0 # TODO: Allow some variation
+                #a=0.5*np.ones(N_tissues) #S0 # TODO: Allow some variation
+                a=uniform(0.2,1.0,N_tissues)
                 b=random(N_tissues) #R2
                 c=random(N_tissues) #Y
                 d=random(N_tissues) #nu
@@ -234,7 +235,7 @@ def create_images(seg):
                 Y  = (SaO2 - 0.01) * c + 0.01   #from 1% to 98%
                 nu = (0.1 - 0.001) * d + 0.001  #from 0.1% to 10%
                 chi_nb = ( 0.1-(-0.1) ) * e - 0.1 #from -0.1 ppb to 0.1 ppb
-                """ Special cases for air and CSF """
+                """ Special cases for air and CSF
                 # type[0] air
                 a[0]=b[0]=c[0]=d[0]=e[0] = 0
                 S0[0] = 0
@@ -242,7 +243,7 @@ def create_images(seg):
                 Y[0] = 0
                 nu[0] = 0
                 chi_nb[0] = 0
-
+                """
                 """type[3] CSF
                 #a/S0 normal
                 #for now treat CSF not as special. Later maybe add percentage of CSF to the Network, then add CSF here too
@@ -274,7 +275,7 @@ def create_images(seg):
                 #save 3 images
                 #print(patch_Params.dtype)
                 #outputFolder = "C:/Users/patri/Documents/Programming/Brain_Phantom/Patches/"
-                outputFolder = "../Brain_Phantom/Patches/"
+                outputFolder = "../Brain_Phantom/Patches_no_air/"
                 file_number = "{0}".format(count).zfill(6)
                 sitk.WriteImage(sitk.GetImageFromArray(patch_Params),outputFolder+ "Params/Params_"+file_number+ ".TIF", useCompression=False)
                 sitk.WriteImage(sitk.GetImageFromArray(patch_qBOLD),outputFolder + "qBOLD/qBOLD_"+file_number+ ".TIF", useCompression=False)
