@@ -17,7 +17,7 @@ import h5py
 #Params_training,Params_test,qBOLD_training,qBOLD_test,QSM_training,QSM_test = load_and_prepare_data(data_dir)
 
 #np.savez("../Brain_Phantom/Patches/NumpyArchiv",Params_training=Params_training,Params_test=Params_test,qBOLD_training=qBOLD_training,qBOLD_test=qBOLD_test,QSM_training=QSM_training,QSM_test=QSM_test)
-Dataset=np.load("../Brain_Phantom/Patches/NumpyArchiv.npz")
+Dataset=np.load("../Brain_Phantom/Patches_no_air/NumpyArchiv_0noise.npz")
 Params_training=Dataset['Params_training']
 Params_test=Dataset['Params_test']
 qBOLD_training=Dataset['qBOLD_training']
@@ -25,7 +25,7 @@ qBOLD_test=Dataset['qBOLD_test']
 QSM_training=Dataset['QSM_training']
 QSM_test=Dataset['QSM_test']
 
-
+version = "no_air_0noise/"
 
 # %% Network
 
@@ -128,9 +128,9 @@ keras.utils.plot_model(model_params, show_shapes=True)
 # %% Train Params model
 
 opt = keras.optimizers.Adam(0.001, clipnorm=1.)
-loss=keras.losses.MeanAbsolutePercentageError()
+#loss=keras.losses.MeanAbsolutePercentageError()
 #loss=keras.losses.MeanSquaredLogarithmicError()
-#loss=keras.losses.MeanSquaredError()
+loss=keras.losses.MeanSquaredError()
 #loss=tf.keras.losses.Huber()
 losses = {
     "output_S0":loss,
@@ -168,24 +168,32 @@ R2_training = tf.expand_dims(Params_training[:,:,:,1],-1)
 Y_training = tf.expand_dims(Params_training[:,:,:,2],-1)
 nu_training = tf.expand_dims(Params_training[:,:,:,3],-1)
 chi_nb_training = tf.expand_dims(Params_training[:,:,:,4],-1)
-target_list = [S0_training,R2_training,Y_training,nu_training,chi_nb_training]
+training_list = [S0_training,R2_training,Y_training,nu_training,chi_nb_training]
 
-history = model_params.fit([qBOLD_training,QSM_training], target_list , batch_size=200, epochs=1000, validation_split=0.2, callbacks=my_callbacks)
-test_scores = model_params.evaluate([qBOLD_test,QSM_test], Params_test, verbose=2)
+history = model_params.fit([qBOLD_training,QSM_training], training_list , batch_size=100, epochs=1000, validation_split=0.2, callbacks=my_callbacks)
+
+S0_test = tf.expand_dims(Params_test[:,:,:,0],-1)
+R2_test = tf.expand_dims(Params_test[:,:,:,1],-1)
+Y_test = tf.expand_dims(Params_test[:,:,:,2],-1)
+nu_test = tf.expand_dims(Params_test[:,:,:,3],-1)
+chi_nb_test = tf.expand_dims(Params_test[:,:,:,4],-1)
+test_list = [S0_test,R2_test,Y_test,nu_test,chi_nb_test]
+
+
+test_scores = model_params.evaluate([qBOLD_test,QSM_test], test_list, verbose=2)
 print("Test loss:", test_scores[0])
 print("Test accuracy:", test_scores[1])
 
 #%%
-model_params.save("models/Model_2D_Params_before_qqbold.h5")
+model_params.save("models/"+version+ "Model_2D_Params_before_qqbold.h5")
 
 # %%
-model_params = keras.models.load_model("models/Model_2D_Params_before_qqbold.h5")
+model_params = keras.models.load_model("models/"+version+ "Model_2D_Params_before_qqbold.h5")
 #model_params.summary()
 p = model_params.predict([qBOLD_test,QSM_test])
 p[0].shape
 #%%
-def check_Params(Params_test,p):
-    Number = 2
+def check_Params(Params_test,p,Number):
     fig, axes = plt.subplots(nrows=2, ncols=5,figsize=(15,5))
     ax = axes.ravel()
     P0 = ax[0].imshow(Params_test[Number,:,:,0], cmap='gray')
@@ -253,8 +261,9 @@ def check_Params(Params_test,p):
     ax[8].hist(np.squeeze(p[3][Number,:,:,:]).ravel())
     ax[9].hist(np.squeeze(p[4][Number,:,:,:]).ravel())
     plt.show()
-
-check_Params(Params_test,p)
+#%%
+Number = 2
+check_Params(Params_test,p,Number)
 
 
 #%%
@@ -394,7 +403,7 @@ my_callbacks = [
     #tf.keras.callbacks.ModelCheckpoint(filepath='model.{epoch:02d}-{val_loss:.2f}.h5'),
     #tf.keras.callbacks.TensorBoard(log_dir='./logs/2021_07_15-1330')
 ]
-history = model.fit([qBOLD_training,QSM_training], [tf.expand_dims(qBOLD_training,axis=3),tf.expand_dims(QSM_training,axis=3)] , batch_size=200, epochs=1000, validation_split=0.2, callbacks=my_callbacks)
+history = model.fit([qBOLD_training,QSM_training], [tf.expand_dims(qBOLD_training,axis=3),tf.expand_dims(QSM_training,axis=3)] , batch_size=100, epochs=1000, validation_split=0.2, callbacks=my_callbacks)
 
 test_scores = model.evaluate([qBOLD_test,QSM_test],  [tf.expand_dims(qBOLD_test,axis=3),tf.expand_dims(QSM_test,axis=3)], verbose=2)
 #qBOLD_test.shape
@@ -404,21 +413,20 @@ print("Test loss:", test_scores[0])
 print("Test accuracy:", test_scores[1])
 test_scores_params = model_params.evaluate([qBOLD_test,QSM_test], Params_test, verbose=2)
 
-model_params.save("models/Model_2D_Params_after_qqbold.h5")
-model.save("models/Model_2D_Full_qqbold.h5")
+model_params.save("models/"+version+ "Model_2D_Params_after_qqbold.h5")
+model.save("models/"+version+ "Model_2D_Full_qqbold.h5")
 
 
 # %%
 
 p_after = model_params.predict([qBOLD_test,QSM_test])
-
+#%%
 Number = 2
 
-check_Params(Params_test,p_after)
+check_Params(Params_test,p_after,Number)
 
 #%%
-def check_QSM(t,p): #target prediction
-    Number = 2
+def check_QSM(t,p,Number): #target prediction
     fig, axes = plt.subplots(nrows=2, ncols=1)
     ax = axes.ravel()
     P0=ax[0].imshow(t[Number,:,:,0], cmap='gray')
@@ -433,12 +441,11 @@ p_full = model.predict([qBOLD_test,QSM_test])
 QSM_test.shape
 len(p_full)
 p_full[1].shape
-check_QSM(QSM_test,p_full[1])
+check_QSM(QSM_test,p_full[1],Number)
 
 
 #%%
-def check_qBOLD(t,p): #target prediction
-    Number = 2
+def check_qBOLD(t,p,Number): #target prediction
     fig, axes = plt.subplots(nrows=2, ncols=5,figsize=(15,5))
     ax = axes.ravel()
 
@@ -492,4 +499,52 @@ def check_qBOLD(t,p): #target prediction
 qBOLD_test.shape
 len(p_full)
 p_full[0].shape
-check_qBOLD(qBOLD_test,p_full[0])
+check_qBOLD(qBOLD_test,p_full[0],Number)
+
+
+#%% check qBOLD Verlauf
+
+def check_Pixel(target,prediction,QSM_t,QSM_p,Number):
+    t=np.array([3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48])/1000
+    plt.figure()
+    plt.imshow(target[Number,:,:,0], cmap='gray')
+    plt.plot([5,10,15,20,25],[15,15,15,15,15],'o')
+    plt.show()
+    fig, axes = plt.subplots(nrows=1, ncols=2,figsize=(10,5))
+    ax = axes.ravel()
+    ax[0].plot(t,target[Number,5,15,:],"o-r")
+    ax[0].plot(t,prediction[Number,5,15,0,:],"o-b")
+    ax[1].plot("QSM",QSM_t[Number,5,15,0],"or")
+    ax[1].plot("QSM",QSM_p[Number,5,15,0,0],"ob")
+    plt.show()
+    fig, axes = plt.subplots(nrows=1, ncols=2,figsize=(10,5))
+    ax = axes.ravel()
+    ax[0].plot(t,target[Number,10,15,:],"o-r")
+    ax[0].plot(t,prediction[Number,10,15,0,:],"o-b")
+    ax[1].plot("QSM",QSM_t[Number,10,15,0],"or")
+    ax[1].plot("QSM",QSM_p[Number,10,15,0,0],"ob")
+    plt.show(    )
+    fig, axes = plt.subplots(nrows=1, ncols=2,figsize=(10,5))
+    ax = axes.ravel()
+    ax[0].plot(t,target[Number,15,15,:],"o-r")
+    ax[0].plot(t,prediction[Number,15,15,0,:],"o-b")
+    ax[1].plot("QSM",QSM_t[Number,15,15,0],"or")
+    ax[1].plot("QSM",QSM_p[Number,15,15,0,0],"ob")
+    plt.show()
+    fig, axes = plt.subplots(nrows=1, ncols=2,figsize=(10,5))
+    ax = axes.ravel()
+    ax[0].plot(t,target[Number,20,15,:],"o-r")
+    ax[0].plot(t,prediction[Number,20,15,0,:],"o-b")
+    ax[1].plot("QSM",QSM_t[Number,20,15,0],"or")
+    ax[1].plot("QSM",QSM_p[Number,20,15,0,0],"ob")
+    plt.show()
+    fig, axes = plt.subplots(nrows=1, ncols=2,figsize=(10,5))
+    ax = axes.ravel()
+    ax[0].plot(t,target[Number,25,15,:],"o-r")
+    ax[0].plot(t,prediction[Number,25,15,0,:],"o-b")
+    ax[1].plot("QSM",QSM_t[Number,25,15,0],"or")
+    ax[1].plot("QSM",QSM_p[Number,25,15,0,0],"ob")
+    plt.show()
+
+Number=5
+check_Pixel(qBOLD_test,p_full[0],QSM_test,p_full[1],Number)

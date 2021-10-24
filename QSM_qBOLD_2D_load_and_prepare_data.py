@@ -36,6 +36,9 @@ def read_data(data_dir):
 #print(meanQSM)
 #meanabsQSM = np.mean(np.abs(QSM))
 #print(meanabsQSM)
+
+
+
 #%%
 """
 print(np.any(~np.isfinite(Params)))
@@ -100,9 +103,11 @@ def add_noise_data(Params,qBOLD,QSM):
     QSM = add_noise_QSM(QSM,0,0.001) #mean(QSM) = 0.02,mean(abs(QSM))=0.05
     return Params,qBOLD,QSM
 #%%
-
+"""
 def norm_qBOLD(a):
-
+    for i in range(a.shape[0])
+        variable calculated from a[i,:,:,0] could be mean, or max or something like that
+        a[i,:,:,:] = a[i,:,:,:]/variable
     return a
 
 def norm_data(Params,qBOLD,QSM):
@@ -110,7 +115,7 @@ def norm_data(Params,qBOLD,QSM):
     qBOLD = norm_qBOLD(qBOLD)
     #QSM is already -1 to +1 or even less
     return Params,qBOLD,QSM
-
+"""
 
 #%% split in training and test
 def split_training_test(Params,qBOLD,QSM,percentage=0.9):
@@ -183,23 +188,21 @@ ax[1].imshow(input_noise_norm_test[500,:,:,1], cmap='Greys')
 ax[2].imshow(input_noise_norm_test[600,:,:,1], cmap='Greys')
 ax[3].imshow(input_noise_norm_test[700,:,:,1], cmap='Greys')
 
-
-
-
 """
+#%%
 def load_and_prepare_data(data_dir):
     Params,qBOLD,QSM = read_data(data_dir)
     #print(qBOLD.dtype)
     Params,qBOLD,QSM = shuffle_data(Params,qBOLD,QSM)
     #print(qBOLD.dtype)
-    Params,qBOLD,QSM = add_noise_data(Params,qBOLD,QSM)
+    #Params,qBOLD,QSM = add_noise_data(Params,qBOLD,QSM)
     #print(qBOLD.dtype)
     #Params,qBOLD,QSM = norm_data(Params,qBOLD,QSM)
     Params_training,Params_test,qBOLD_training,qBOLD_test,QSM_training,QSM_test = split_training_test(Params,qBOLD,QSM)
     #print(qBOLD_training.dtype)
     return Params_training,Params_test,qBOLD_training,qBOLD_test,QSM_training,QSM_test
 
-#%% 
-#data_dir = "../Brain_Phantom/Patches/"
-#Params_training,Params_test,qBOLD_training,qBOLD_test,QSM_training,QSM_test = load_and_prepare_data(data_dir)
-#np.savez("../Brain_Phantom/Patches/NumpyArchiv",Params_training=Params_training,Params_test=Params_test,qBOLD_training=qBOLD_training,qBOLD_test=qBOLD_test,QSM_training=QSM_training,QSM_test=QSM_test)
+#%%
+data_dir = "../Brain_Phantom/Patches_no_air/"
+Params_training,Params_test,qBOLD_training,qBOLD_test,QSM_training,QSM_test = load_and_prepare_data(data_dir)
+np.savez(data_dir + "NumpyArchiv_0noise",Params_training=Params_training,Params_test=Params_test,qBOLD_training=qBOLD_training,qBOLD_test=qBOLD_test,QSM_training=QSM_training,QSM_test=QSM_test)
