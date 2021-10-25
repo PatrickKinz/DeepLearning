@@ -100,20 +100,16 @@ conv_QQ_2 = layers.Conv2D(2*48,3,padding='same',name = 'conv_QQ_2')(conv_QQ_1)
 
 concat_QQ_2 = layers.Concatenate(name = 'concat_QQ_2')([concat_QQ_1,conv_QQ_2])
 
-#dense_layer_2 = layers.Dense(96,name = 'Dense_2')(dense_layer_1)
 
 
-dense_layer_3a = layers.Dense(1,activation="sigmoid", name = 'S0')(    concat_QQ_2)
-dense_layer_3b = layers.Dense(1,activation="sigmoid", name = 'R2')(    concat_QQ_2)
-dense_layer_3c = layers.Dense(1,activation="sigmoid", name = 'Y')(     concat_QQ_2)
-dense_layer_3d = layers.Dense(1,activation="sigmoid", name = 'nu')(    concat_QQ_2)
-dense_layer_3e = layers.Dense(1,activation="sigmoid", name = 'chi_nb')(concat_QQ_2)
+conv_S0 = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'S0')(    concat_QQ_2)
+conv_R2 = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'R2')(    concat_QQ_2)
+conv_Y = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'Y')(     concat_QQ_2)
+conv_nu = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'nu')(    concat_QQ_2)
+conv_chinb = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'chi_nb')(concat_QQ_2)
 
-#before_lambda_model = keras.Model(input_layer, dense_layer_3, name="before_lambda_model")
 
-#Params_Layer = layers.concatenate(name = 'Output_Params',inputs=[dense_layer_3a,dense_layer_3b,dense_layer_3c,dense_layer_3d,dense_layer_3e],axis=-2)
-#Params_Layer = layers.Concatenate(name = 'Output_Params')([dense_layer_3b,dense_layer_3c])
-model_params = keras.Model(inputs=[input_qBOLD,input_QSM],outputs=[dense_layer_3a,dense_layer_3b,dense_layer_3c,dense_layer_3d,dense_layer_3e],name="Params_model")
+model_params = keras.Model(inputs=[input_qBOLD,input_QSM],outputs=[conv_S0,conv_R2,conv_Y,conv_nu,conv_chinb],name="Params_model")
 model_params.summary()
 keras.utils.plot_model(model_params, show_shapes=True)
 
@@ -150,26 +146,26 @@ model_params.compile(
 
 #%%
 my_callbacks = [
-    tf.keras.callbacks.EarlyStopping(patience=2),
+    tf.keras.callbacks.EarlyStopping(patience=3),
     #tf.keras.callbacks.ModelCheckpoint(filepath='model.{epoch:02d}-{val_loss:.2f}.h5'),
     #tf.keras.callbacks.TensorBoard(log_dir='./logs/2021_07_15-1330')
 ]
 
 
-S0_training = tf.expand_dims(Params_training[:,:,:,0],-1)
-R2_training = tf.expand_dims(Params_training[:,:,:,1],-1)
-Y_training = tf.expand_dims(Params_training[:,:,:,2],-1)
-nu_training = tf.expand_dims(Params_training[:,:,:,3],-1)
-chi_nb_training = tf.expand_dims(Params_training[:,:,:,4],-1)
+S0_training = Params_training[:,:,:,0]
+R2_training = Params_training[:,:,:,1]
+Y_training = Params_training[:,:,:,2]
+nu_training = Params_training[:,:,:,3]
+chi_nb_training = Params_training[:,:,:,4]
 training_list = [S0_training,R2_training,Y_training,nu_training,chi_nb_training]
 
 history_params = model_params.fit([qBOLD_training,QSM_training], training_list , batch_size=100, epochs=1000, validation_split=0.2, callbacks=my_callbacks)
 
-S0_test = tf.expand_dims(Params_test[:,:,:,0],-1)
-R2_test = tf.expand_dims(Params_test[:,:,:,1],-1)
-Y_test = tf.expand_dims(Params_test[:,:,:,2],-1)
-nu_test = tf.expand_dims(Params_test[:,:,:,3],-1)
-chi_nb_test = tf.expand_dims(Params_test[:,:,:,4],-1)
+S0_test = Params_test[:,:,:,0]
+R2_test = Params_test[:,:,:,1]
+Y_test = Params_test[:,:,:,2]
+nu_test = Params_test[:,:,:,3]
+chi_nb_test = Params_test[:,:,:,4]
 test_list = [S0_test,R2_test,Y_test,nu_test,chi_nb_test]
 
 
@@ -236,20 +232,20 @@ def check_Params(Params_test,p,Number):
 
     fig, axes = plt.subplots(nrows=1, ncols=5,figsize=(15,5))
     ax = axes.ravel()
-    ax[0].plot(Params_test[Number,15,:,0])
-    ax[0].plot(np.squeeze(p[0][Number,15,:,:]))
+    ax[0].plot(Params_test[Number,15,:,0],'.')
+    ax[0].plot(np.squeeze(p[0][Number,15,:,:]),'.')
     ax[0].title.set_text('a')
-    ax[1].plot(Params_test[Number,15,:,1])
-    ax[1].plot(np.squeeze(p[1][Number,15,:,:]))
+    ax[1].plot(Params_test[Number,15,:,1],'.')
+    ax[1].plot(np.squeeze(p[1][Number,15,:,:]),'.')
     ax[1].title.set_text('b')
-    ax[2].plot(Params_test[Number,15,:,2])
-    ax[2].plot(np.squeeze(p[2][Number,15,:,:]))
+    ax[2].plot(Params_test[Number,15,:,2],'.')
+    ax[2].plot(np.squeeze(p[2][Number,15,:,:]),'.')
     ax[2].title.set_text('c')
-    ax[3].plot(Params_test[Number,15,:,3])
-    ax[3].plot(np.squeeze(p[3][Number,15,:,:]))
+    ax[3].plot(Params_test[Number,15,:,3],'.')
+    ax[3].plot(np.squeeze(p[3][Number,15,:,:]),'.')
     ax[3].title.set_text('d')
-    ax[4].plot(Params_test[Number,15,:,4])
-    ax[4].plot(np.squeeze(p[4][Number,15,:,:]))
+    ax[4].plot(Params_test[Number,15,:,4],'.')
+    ax[4].plot(np.squeeze(p[4][Number,15,:,:]),'.')
     ax[4].title.set_text('e')
     plt.show()
 
@@ -341,7 +337,7 @@ def f_qBOLD_tensor(tensor):
     output_Echo_rise = S0 * tf.math.exp(-R2*t_Echo_rise - nu*f_hyper_tensor(dw*(TE-t_Echo_rise)))
     t_Echo_fall=tf.constant([42,45,48], dtype=tf.float32)/1000
     output_Echo_fall = S0 * tf.math.exp(-R2*t_Echo_fall - nu*f_hyper_tensor(dw*(t_Echo_fall-TE)))
-    return tf.squeeze(tf.concat([output_FID,output_Echo_rise,output_Echo_fall],axis=-1),[-2])
+    return tf.concat([output_FID,output_Echo_rise,output_Echo_fall],axis=-1)
 """
 This kind of test does not work because of Dimensions, but it works somehow in the network
 Incompatible shapes: [30,30] vs. [6] [Op:Mul]
@@ -386,7 +382,7 @@ def f_QSM_tensor(tensor):
     Summand1 = (chi_ba/alpha +psi_Hb*delta_chi_Hb * ((1-(1-alpha)*SaO2)/alpha - Y) )*nu
     Summand2 = (1 - nu/alpha) * chi_nb
 
-    return tf.squeeze(Summand1+Summand2,[-2]) #np.array version is np.array([a+b]).T, maybe transpose here too
+    return Summand1+Summand2 #np.array version is np.array([a+b]).T, maybe transpose here too
 
 
 #%%
@@ -403,7 +399,7 @@ keras.utils.plot_model(model, show_shapes=True)
 # %% Train full model
 model.compile(
     loss=keras.losses.MeanSquaredError(),
-    optimizer='adam',
+    optimizer=opt,
     metrics=[tf.keras.metrics.MeanAbsolutePercentageError()],
     #metrics=["accuracy"],
 )
@@ -423,8 +419,8 @@ print("Test loss:", test_scores[0])
 print("Test accuracy:", test_scores[1])
 test_scores_params = model_params.evaluate([qBOLD_test,QSM_test], Params_test, verbose=2)
 
-model_params.save("models/"+version+ "Model_2D_Params_after_qqbold.h5")
-model.save("models/"+version+ "Model_2D_Full_qqbold.h5")
+model_params.save("models/"+version+ "Model_2D_fully_conv_Params_after_qqbold.h5")
+model.save("models/"+version+ "Model_2D_fully_conv_Full_qqbold.h5")
 
 # %%
 print(history.history.keys())
