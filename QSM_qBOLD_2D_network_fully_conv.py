@@ -29,96 +29,89 @@ version = "no_air_0noise/"
 
 # %% Network
 
-input_qBOLD = keras.Input(shape=(30,30,16,1), name = 'Input_qBOLD')
+input_qBOLD = keras.Input(shape=(30,30,16), name = 'Input_qBOLD')
 
 input_qBOLD.shape
 input_qBOLD.dtype
 
 n=8
 
-conv_qBOLD_p1 = keras.layers.Conv3D(n,
-                  kernel_size = [1,1,9],
+conv_qBOLD_1 = keras.layers.Conv2D(n,
+                  kernel_size = 3,
                   strides=1,
-                  padding='valid',
-                  dilation_rate=1,
-                  activation='sigmoid',
-                  name='conv_qBOLD_p1')(input_qBOLD)
-
-conv_qBOLD_p2 = keras.layers.Conv3D(2*n,
-                  kernel_size = [1,1,8],
-                  strides=1,
-                  padding='valid',
-                  dilation_rate=1,
-                  activation='sigmoid',
-                  name='conv_qBOLD_p2')(conv_qBOLD_p1)
-
-
-conv_qBOLD_d1 = keras.layers.Conv3D(n,
-                  (3,3,1),
-                  strides=(2,2,1),
                   padding='same',
                   dilation_rate=1,
                   activation='sigmoid',
-                  name='conv_qBOLD_d1')(input_qBOLD)
+                  name='conv_qBOLD_1')(input_qBOLD)
 
-upSamp_qBOLD_1 = keras.layers.UpSampling3D(size=(2,2,1), name = 'upSamp_qBOLD_1'                   )(conv_qBOLD_d1)
-
-
-conv_qBOLD_d2 = keras.layers.Conv3D(2*n,
-                  kernel_size = [1,1,16],
+conv_qBOLD_2 = keras.layers.Conv2D(2*n,
+                  kernel_size = 3,
                   strides=1,
-                  padding='valid',
+                  padding='same',
                   dilation_rate=1,
                   activation='sigmoid',
-                  name='conv_qBOLD_d2')(upSamp_qBOLD_1)
+                  name='conv_qBOLD_2')(conv_qBOLD_1)
 
-concatenate_qBOLD = layers.Concatenate(name = 'Concat_qBOLD')([conv_qBOLD_p2,conv_qBOLD_d2])
-dense_layer_qBOLD = layers.Dense(16,name = 'Dense_qBOLD')(concatenate_qBOLD)
-model_qBOLD = keras.Model(inputs=input_qBOLD, outputs = dense_layer_qBOLD, name="qBOLD model")
+
+concatenate_qBOLD = layers.Concatenate(name = 'Concat_qBOLD')([input_qBOLD,conv_qBOLD_2])
+conv_qBOLD_3 =keras.layers.Conv2D(3*n,
+                  kernel_size = 3,
+                  strides=1,
+                  padding='same',
+                  dilation_rate=1,
+                  activation='sigmoid',
+                  name='conv_qBOLD_3')(concatenate_qBOLD)
+
+
+
+model_qBOLD = keras.Model(inputs=input_qBOLD, outputs = conv_qBOLD_3, name="qBOLD model")
 model_qBOLD.summary()
 keras.utils.plot_model(model_qBOLD, show_shapes=True)
 # %%
 
-input_QSM = keras.Input(shape=(30,30,1,1), name = 'Input_QSM')
-conv_QSM_1 = keras.layers.Conv3D(8,
-                  (3,3,1),
-                  strides=(1,1,1),
+input_QSM = keras.Input(shape=(30,30,1), name = 'Input_QSM')
+conv_QSM_1 = keras.layers.Conv2D(n,
+                  kernel_size=3,
+                  strides=(1),
                   padding='same',
                   dilation_rate=1,
                   activation='sigmoid',
                   name='conv_QSM_1')(input_QSM)
 
-conv_QSM_2 = keras.layers.Conv3D(8,
-                  (3,3,1),
-                  strides=(2,2,1),
+conv_QSM_2 = keras.layers.Conv2D(2*n,
+                  kernel_size=3,
+                  strides=(1),
                   padding='same',
                   dilation_rate=1,
                   activation='sigmoid',
                   name='conv_QSM_2')(conv_QSM_1)
 
-upSamp_QSM_1 = keras.layers.UpSampling3D(size=(2,2,1), name = 'upSamp_QSM_1'                   )(conv_QSM_2)
 
-concatenate_QSM = layers.Concatenate(name = 'Concat_QSM')([input_QSM,upSamp_QSM_1])
-dense_layer_QSM = layers.Dense(8,name = 'Dense_QSM')(concatenate_QSM)
-model_QSM = keras.Model(inputs=input_QSM, outputs = dense_layer_QSM, name="QSM model")
+concatenate_QSM = layers.Concatenate(name = 'Concat_QSM')([input_QSM,conv_QSM_2])
+conv_QSM_3 = layers.Conv2D(3*n,3,padding='same',name = 'conv_QSM_3')(concatenate_QSM)
+model_QSM = keras.Model(inputs=input_QSM, outputs = conv_QSM_3, name="QSM model")
 model_QSM.summary()
 keras.utils.plot_model(model_QSM, show_shapes=True)
 # %%
-concatenate_layer = layers.Concatenate(name = 'Concat_QQ')([model_qBOLD.output,model_QSM.output])
+concat_QQ_1 = layers.Concatenate(name = 'concat_QQ_1')([model_qBOLD.output,model_QSM.output])
 
-dense_layer_1 = layers.Dense(48,name = 'Dense_1')(concatenate_layer)
+conv_QQ_1 = layers.Conv2D(48,3,padding='same',name = 'conv_QQ_1')(concat_QQ_1)
+conv_QQ_2 = layers.Conv2D(2*48,3,padding='same',name = 'conv_QQ_2')(conv_QQ_1)
+
+concat_QQ_2 = layers.Concatenate(name = 'concat_QQ_2')([concat_QQ_1,conv_QQ_2])
+
 #dense_layer_2 = layers.Dense(96,name = 'Dense_2')(dense_layer_1)
 
 
-dense_layer_3a = layers.Dense(1,activation="sigmoid", name = 'S0')(    dense_layer_1)
-dense_layer_3b = layers.Dense(1,activation="sigmoid", name = 'R2')(    dense_layer_1)
-dense_layer_3c = layers.Dense(1,activation="sigmoid", name = 'Y')(     dense_layer_1)
-dense_layer_3d = layers.Dense(1,activation="sigmoid", name = 'nu')(    dense_layer_1)
-dense_layer_3e = layers.Dense(1,activation="sigmoid", name = 'chi_nb')(dense_layer_1)
+dense_layer_3a = layers.Dense(1,activation="sigmoid", name = 'S0')(    concat_QQ_2)
+dense_layer_3b = layers.Dense(1,activation="sigmoid", name = 'R2')(    concat_QQ_2)
+dense_layer_3c = layers.Dense(1,activation="sigmoid", name = 'Y')(     concat_QQ_2)
+dense_layer_3d = layers.Dense(1,activation="sigmoid", name = 'nu')(    concat_QQ_2)
+dense_layer_3e = layers.Dense(1,activation="sigmoid", name = 'chi_nb')(concat_QQ_2)
 
 #before_lambda_model = keras.Model(input_layer, dense_layer_3, name="before_lambda_model")
 
-Params_Layer = layers.concatenate(name = 'Output_Params',inputs=[dense_layer_3a,dense_layer_3b,dense_layer_3c,dense_layer_3d,dense_layer_3e],axis=-2)
+#Params_Layer = layers.concatenate(name = 'Output_Params',inputs=[dense_layer_3a,dense_layer_3b,dense_layer_3c,dense_layer_3d,dense_layer_3e],axis=-2)
 #Params_Layer = layers.Concatenate(name = 'Output_Params')([dense_layer_3b,dense_layer_3c])
 model_params = keras.Model(inputs=[input_qBOLD,input_QSM],outputs=[dense_layer_3a,dense_layer_3b,dense_layer_3c,dense_layer_3d,dense_layer_3e],name="Params_model")
 model_params.summary()
@@ -203,7 +196,7 @@ plot_loss(history_params,'nu_')
 plot_loss(history_params,'chi_nb_')
 
 #%%
-model_params.save("models/"+version+ "Model_2D_Params_before_qqbold.h5")
+model_params.save("models/"+version+ "Model_2D_fully_conv_Params_before_qqbold.h5")
 
 # %%
 #model_params = keras.models.load_model("models/"+version+ "Model_2D_Params_before_qqbold.h5")
