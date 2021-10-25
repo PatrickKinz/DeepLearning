@@ -13,9 +13,9 @@ def f_hyper(x):
     b = (x>=Intersection)*(x-1)
     return a + b
 
-def f_qBOLD(S0, R2, Y, nu, chi_nb, t):
+def f_qBOLD(S0, R2, Y, nu, chi_nb, t,TE = 40./1000 ):
     output = np.zeros((len(S0),len(t)))
-    TE = 40/1000
+    #TE = 40/1000
     Hct = 0.357
     # Blood Hb volume fraction
     psi_Hb = Hct*0.34/1.335
