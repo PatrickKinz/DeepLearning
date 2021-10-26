@@ -12,6 +12,8 @@ from tqdm import tqdm  #for progress bar
 import h5py
 #from QSM_qBOLD_2D_load_and_prepare_data import load_and_prepare_data
 
+#tf.keras.mixed_precision.set_global_policy("mixed_float16") #accelerates training, expecially with tensor cores on RTX cards
+
 #%%
 #data_dir = "../Brain_Phantom/Patches/"
 #Params_training,Params_test,qBOLD_training,qBOLD_test,QSM_training,QSM_test = load_and_prepare_data(data_dir)
