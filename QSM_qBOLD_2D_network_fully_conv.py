@@ -13,7 +13,7 @@ import h5py
 #from QSM_qBOLD_2D_load_and_prepare_data import load_and_prepare_data
 
 #tf.keras.mixed_precision.set_global_policy("mixed_float16") #accelerates training, expecially with tensor cores on RTX cards
-from My_Custom_Generator import My_Params_Generator,My_Signal_Generator
+#from My_Custom_Generator import My_Params_Generator,My_Signal_Generator
 #%%
 #data_dir = "../Brain_Phantom/Patches/"
 #Params_training,Params_test,qBOLD_training,qBOLD_test,QSM_training,QSM_test = load_and_prepare_data(data_dir)
@@ -70,7 +70,7 @@ conv_qBOLD_2 = keras.layers.Conv2D(2*n,
                   name='conv_qBOLD_2')(conv_qBOLD_1)
 
 
-"""
+
 concatenate_qBOLD = layers.Concatenate(name = 'Concat_qBOLD')([input_qBOLD,conv_qBOLD_2])
 conv_qBOLD_3 =keras.layers.Conv2D(3*n,
                   kernel_size = 3,
@@ -79,10 +79,10 @@ conv_qBOLD_3 =keras.layers.Conv2D(3*n,
                   dilation_rate=1,
                   activation='sigmoid',
                   name='conv_qBOLD_3')(concatenate_qBOLD)
-"""
 
 
-model_qBOLD = keras.Model(inputs=input_qBOLD, outputs = conv_qBOLD_2, name="qBOLD model")
+
+model_qBOLD = keras.Model(inputs=input_qBOLD, outputs = conv_qBOLD_3, name="qBOLD model")
 model_qBOLD.summary()
 keras.utils.plot_model(model_qBOLD, show_shapes=True)
 # %%
@@ -105,9 +105,9 @@ conv_QSM_2 = keras.layers.Conv2D(2*n,
                   name='conv_QSM_2')(conv_QSM_1)
 
 
-#concatenate_QSM = layers.Concatenate(name = 'Concat_QSM')([input_QSM,conv_QSM_2])
-#conv_QSM_3 = layers.Conv2D(3*n,3,padding='same',name = 'conv_QSM_3')(concatenate_QSM)
-model_QSM = keras.Model(inputs=input_QSM, outputs = conv_QSM_2, name="QSM model")
+concatenate_QSM = layers.Concatenate(name = 'Concat_QSM')([input_QSM,conv_QSM_2])
+conv_QSM_3 = layers.Conv2D(3*n,3,padding='same',name = 'conv_QSM_3')(concatenate_QSM)
+model_QSM = keras.Model(inputs=input_QSM, outputs = conv_QSM_3, name="QSM model")
 model_QSM.summary()
 keras.utils.plot_model(model_QSM, show_shapes=True)
 # %%
