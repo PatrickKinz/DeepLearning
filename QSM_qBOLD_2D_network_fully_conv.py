@@ -5,7 +5,7 @@ from tensorflow import keras
 from tensorflow.keras import layers
 
 import numpy as np
-from numpy.random import rand, randn
+from numpy.random import rand, randn,shuffle
 import matplotlib.pyplot as plt
 from tqdm import tqdm  #for progress bar
 
@@ -13,12 +13,13 @@ import h5py
 #from QSM_qBOLD_2D_load_and_prepare_data import load_and_prepare_data
 
 #tf.keras.mixed_precision.set_global_policy("mixed_float16") #accelerates training, expecially with tensor cores on RTX cards
-
+from My_Custom_Generator import My_Params_Generator,My_Signal_Generator
 #%%
 #data_dir = "../Brain_Phantom/Patches/"
 #Params_training,Params_test,qBOLD_training,qBOLD_test,QSM_training,QSM_test = load_and_prepare_data(data_dir)
 
 #np.savez("../Brain_Phantom/Patches/NumpyArchiv",Params_training=Params_training,Params_test=Params_test,qBOLD_training=qBOLD_training,qBOLD_test=qBOLD_test,QSM_training=QSM_training,QSM_test=QSM_test)
+"""
 Dataset=np.load("../Brain_Phantom/Patches_no_air/NumpyArchiv_0noise.npz")
 Params_training=Dataset['Params_training']
 Params_test=Dataset['Params_test']
@@ -26,9 +27,23 @@ qBOLD_training=Dataset['qBOLD_training']
 qBOLD_test=Dataset['qBOLD_test']
 QSM_training=Dataset['QSM_training']
 QSM_test=Dataset['QSM_test']
+"""
 
-version = "no_air_0noise/"
 
+#%%
+version = "no_air_0noise_big/"
+
+filenames=[]
+filenumber=int(848820/20)
+for count in range(filenumber):
+    filenames.append("{0}.TIF".format(count).zfill(6+4))
+filenames_shuffled=shuffle(filenames)
+#split
+threshold = int(filenumber*0.8)
+filenames_train_shuffled=filenames[:threshold]
+filenames_val_shuffled=filenames[threshold:]
+#len(filenames_train_shuffled)
+#filenames_val_shuffled
 # %% Network
 
 input_qBOLD = keras.Input(shape=(30,30,16), name = 'Input_qBOLD')
@@ -55,6 +70,7 @@ conv_qBOLD_2 = keras.layers.Conv2D(2*n,
                   name='conv_qBOLD_2')(conv_qBOLD_1)
 
 
+"""
 concatenate_qBOLD = layers.Concatenate(name = 'Concat_qBOLD')([input_qBOLD,conv_qBOLD_2])
 conv_qBOLD_3 =keras.layers.Conv2D(3*n,
                   kernel_size = 3,
@@ -63,10 +79,10 @@ conv_qBOLD_3 =keras.layers.Conv2D(3*n,
                   dilation_rate=1,
                   activation='sigmoid',
                   name='conv_qBOLD_3')(concatenate_qBOLD)
+"""
 
 
-
-model_qBOLD = keras.Model(inputs=input_qBOLD, outputs = conv_qBOLD_3, name="qBOLD model")
+model_qBOLD = keras.Model(inputs=input_qBOLD, outputs = conv_qBOLD_2, name="qBOLD model")
 model_qBOLD.summary()
 keras.utils.plot_model(model_qBOLD, show_shapes=True)
 # %%
@@ -89,9 +105,9 @@ conv_QSM_2 = keras.layers.Conv2D(2*n,
                   name='conv_QSM_2')(conv_QSM_1)
 
 
-concatenate_QSM = layers.Concatenate(name = 'Concat_QSM')([input_QSM,conv_QSM_2])
-conv_QSM_3 = layers.Conv2D(3*n,3,padding='same',name = 'conv_QSM_3')(concatenate_QSM)
-model_QSM = keras.Model(inputs=input_QSM, outputs = conv_QSM_3, name="QSM model")
+#concatenate_QSM = layers.Concatenate(name = 'Concat_QSM')([input_QSM,conv_QSM_2])
+#conv_QSM_3 = layers.Conv2D(3*n,3,padding='same',name = 'conv_QSM_3')(concatenate_QSM)
+model_QSM = keras.Model(inputs=input_QSM, outputs = conv_QSM_2, name="QSM model")
 model_QSM.summary()
 keras.utils.plot_model(model_QSM, show_shapes=True)
 # %%
@@ -100,15 +116,15 @@ concat_QQ_1 = layers.Concatenate(name = 'concat_QQ_1')([model_qBOLD.output,model
 conv_QQ_1 = layers.Conv2D(48,3,padding='same',name = 'conv_QQ_1')(concat_QQ_1)
 conv_QQ_2 = layers.Conv2D(2*48,3,padding='same',name = 'conv_QQ_2')(conv_QQ_1)
 
-concat_QQ_2 = layers.Concatenate(name = 'concat_QQ_2')([concat_QQ_1,conv_QQ_2])
+#concat_QQ_2 = layers.Concatenate(name = 'concat_QQ_2')([concat_QQ_1,conv_QQ_2])
 
 
 
-conv_S0 = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'S0')(    concat_QQ_2)
-conv_R2 = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'R2')(    concat_QQ_2)
-conv_Y = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'Y')(     concat_QQ_2)
-conv_nu = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'nu')(    concat_QQ_2)
-conv_chinb = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'chi_nb')(concat_QQ_2)
+conv_S0 = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'S0')(    conv_QQ_2)
+conv_R2 = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'R2')(    conv_QQ_2)
+conv_Y = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'Y')(     conv_QQ_2)
+conv_nu = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'nu')(    conv_QQ_2)
+conv_chinb = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'chi_nb')(conv_QQ_2)
 
 
 model_params = keras.Model(inputs=[input_qBOLD,input_QSM],outputs=[conv_S0,conv_R2,conv_Y,conv_nu,conv_chinb],name="Params_model")
@@ -161,8 +177,43 @@ nu_training = Params_training[:,:,:,3]
 chi_nb_training = Params_training[:,:,:,4]
 training_list = [S0_training,R2_training,Y_training,nu_training,chi_nb_training]
 
-history_params = model_params.fit([qBOLD_training,QSM_training], training_list , batch_size=100, epochs=1000, validation_split=0.2, callbacks=my_callbacks)
+#batch_size=100
 
+#my_training_Params_generator = My_Params_Generator(filenames_train_shuffled,batch_size)
+#my_val_Params_generator = My_Params_Generator(filenames_val_shuffled,batch_size)
+#training_Params_data = tf.data.Dataset.from_generator(
+#                                        my_training_Params_generator,
+#                                        output_types=( (tf.float32,tf.float32),   (tf.float32,tf.float32,tf.float32,tf.float32,tf.float32)    )
+#                                                          )
+
+"""
+output_signature=( (tf.TensorSpec(shape=(30,30,16),dtype=tf.float32) ,
+tf.TensorSpec(shape=(30,30,1),dtype=tf.float32) ),
+(tf.TensorSpec(shape=(30,30,1),dtype=tf.float32),
+tf.TensorSpec(shape=(30,30,1),dtype=tf.float32),
+tf.TensorSpec(shape=(30,30,1),dtype=tf.float32),
+tf.TensorSpec(shape=(30,30,1),dtype=tf.float32),
+tf.TensorSpec(shape=(30,30,1),dtype=tf.float32))
+
+
+
+val_Params_data = tf.data.Dataset.from_generator(
+                                        my_val_Params_generator,
+                                        output_signature=( (tf.TensorSpec(shape(30,30,16),dtype=tf.float32) ,
+                                                            tf.TensorSpec(shape(30,30,1),dtype=tf.float32) ),
+                                                            (tf.TensorSpec(shape(30,30,1),dtype=tf.float32),
+                                                            tf.TensorSpec(shape(30,30,1),dtype=tf.float32),
+                                                            tf.TensorSpec(shape(30,30,1),dtype=tf.float32),
+                                                            tf.TensorSpec(shape(30,30,1),dtype=tf.float32),
+                                                            tf.TensorSpec(shape(30,30,1),dtype=tf.float32))                                                   )
+                                                          )
+                                        )
+"""
+history_params = model_params.fit([qBOLD_training,QSM_training], training_list , batch_size=100, epochs=1000, validation_split=0.2, callbacks=my_callbacks)
+#history_params = model_params.fit(training_Params_data, epochs=100,validation_data=val_Params_data, callbacks=my_callbacks)
+
+#%%
+"""
 S0_test = Params_test[:,:,:,0]
 R2_test = Params_test[:,:,:,1]
 Y_test = Params_test[:,:,:,2]
@@ -565,3 +616,4 @@ def check_Pixel(target,prediction,QSM_t,QSM_p,Number):
 
 Number=2
 check_Pixel(qBOLD_test,p_full[0],QSM_test,p_full[1],Number)
+"""
