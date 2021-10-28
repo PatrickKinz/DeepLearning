@@ -185,13 +185,11 @@ class DataLoader(object):
 
             if self.mode is self.MODES.TRAIN:
                 # shuffle and repeat n_epoch times if in training mode
-                file_list_ds = file_list_ds.shuffle(buffer_size=self.n_files).repeat(
-                    count=n_epochs
-                )
+                file_list_ds = file_list_ds.shuffle(buffer_size=self.n_files)#.repeat(                  count=n_epochs                )
 
             # read data from file using the _read_wrapper
             dataset = file_list_ds.map(
-                map_func=self._read_wrapper, num_parallel_calls=read_threads
+                map_func=self._read_wrapper, num_parallel_calls=tf.data.experimental.AUTOTUNE #was num_parallel_calls=read_threads
             )
             # in the result, each element in the dataset has the number of samples
             # per file as first dimension followed by the sample shape
@@ -218,7 +216,7 @@ class DataLoader(object):
                 dataset = dataset.batch(batch_size=batch_size, drop_remainder=True)
 
             # batch prefetch
-            dataset = dataset.prefetch(1)
+            dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE) #Patrick: was originally 1
 
         return dataset
 
@@ -248,7 +246,8 @@ class DataLoader(object):
             dataset = dataset.interleave(
                 lambda *elem: tf.data.Dataset.zip(
                     tuple((tf.data.Dataset.from_tensor_slices(e) for e in elem))
-                )
+                ),
+                num_parallel_calls=tf.data.experimental.AUTOTUNE
             )
         return dataset
 

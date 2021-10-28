@@ -53,3 +53,6 @@ class My_Signal_Generator(keras.utils.Sequence) :
     QSM    = np.array([io.imread('/QSM/QSM_' + str(file_name)) for file_name in batch_x])
 
     return [qBOLD, QSM], [qBOLD, QSM]
+
+#Params = np.array([io.imread('../Brain_Phantom/Patches_no_air_big/Params/Params_000000.TIF')])
+#Params.shape

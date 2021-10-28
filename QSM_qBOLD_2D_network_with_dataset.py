@@ -10,7 +10,8 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm  #for progress bar
 
 import h5py
-#from QSM_qBOLD_2D_load_and_prepare_data import load_and_prepare_data
+
+from qqboldparamsloader import QQBoldParamsLoader
 
 #tf.keras.mixed_precision.set_global_policy("mixed_float16") #accelerates training, expecially with tensor cores on RTX cards
 #from My_Custom_Generator import My_Params_Generator,My_Signal_Generator
@@ -34,7 +35,7 @@ QSM_test=Dataset['QSM_test']
 version = "no_air_0noise_big/"
 
 filenames=[]
-filenumber=int(848820/20)
+filenumber=int(848820)
 for count in range(filenumber):
     filenames.append("{0}.TIF".format(count).zfill(6+4))
 filenames_shuffled=shuffle(filenames)
@@ -42,7 +43,7 @@ filenames_shuffled=shuffle(filenames)
 threshold = int(filenumber*0.8)
 filenames_train_shuffled=filenames[:threshold]
 filenames_val_shuffled=filenames[threshold:]
-#len(filenames_train_shuffled)
+len(filenames_train_shuffled)
 #filenames_val_shuffled
 # %% Network
 
@@ -61,6 +62,7 @@ conv_qBOLD_1 = keras.layers.Conv2D(n,
                   activation='sigmoid',
                   name='conv_qBOLD_1')(input_qBOLD)
 
+"""
 conv_qBOLD_2 = keras.layers.Conv2D(2*n,
                   kernel_size = 3,
                   strides=1,
@@ -81,8 +83,8 @@ conv_qBOLD_3 =keras.layers.Conv2D(3*n,
                   name='conv_qBOLD_3')(concatenate_qBOLD)
 
 
-
-model_qBOLD = keras.Model(inputs=input_qBOLD, outputs = conv_qBOLD_3, name="qBOLD model")
+"""
+model_qBOLD = keras.Model(inputs=input_qBOLD, outputs = conv_qBOLD_1, name="qBOLD model")
 model_qBOLD.summary()
 keras.utils.plot_model(model_qBOLD, show_shapes=True)
 # %%
@@ -95,7 +97,7 @@ conv_QSM_1 = keras.layers.Conv2D(n,
                   dilation_rate=1,
                   activation='sigmoid',
                   name='conv_QSM_1')(input_QSM)
-
+"""
 conv_QSM_2 = keras.layers.Conv2D(2*n,
                   kernel_size=3,
                   strides=(1),
@@ -107,24 +109,25 @@ conv_QSM_2 = keras.layers.Conv2D(2*n,
 
 concatenate_QSM = layers.Concatenate(name = 'Concat_QSM')([input_QSM,conv_QSM_2])
 conv_QSM_3 = layers.Conv2D(3*n,3,padding='same',name = 'conv_QSM_3')(concatenate_QSM)
-model_QSM = keras.Model(inputs=input_QSM, outputs = conv_QSM_3, name="QSM model")
+"""
+model_QSM = keras.Model(inputs=input_QSM, outputs = conv_QSM_1, name="QSM model")
 model_QSM.summary()
 keras.utils.plot_model(model_QSM, show_shapes=True)
 # %%
 concat_QQ_1 = layers.Concatenate(name = 'concat_QQ_1')([model_qBOLD.output,model_QSM.output])
 
-conv_QQ_1 = layers.Conv2D(48,3,padding='same',name = 'conv_QQ_1')(concat_QQ_1)
-conv_QQ_2 = layers.Conv2D(2*48,3,padding='same',name = 'conv_QQ_2')(conv_QQ_1)
+conv_QQ_1 = layers.Conv2D(2*n,3,padding='same',name = 'conv_QQ_1')(concat_QQ_1)
+#conv_QQ_2 = layers.Conv2D(2*48,3,padding='same',name = 'conv_QQ_2')(conv_QQ_1)
 
 #concat_QQ_2 = layers.Concatenate(name = 'concat_QQ_2')([concat_QQ_1,conv_QQ_2])
 
 
 
-conv_S0 = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'S0')(    conv_QQ_2)
-conv_R2 = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'R2')(    conv_QQ_2)
-conv_Y = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'Y')(     conv_QQ_2)
-conv_nu = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'nu')(    conv_QQ_2)
-conv_chinb = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'chi_nb')(conv_QQ_2)
+conv_S0 = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'S0')(    conv_QQ_1)
+conv_R2 = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'R2')(    conv_QQ_1)
+conv_Y = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'Y')(     conv_QQ_1)
+conv_nu = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'nu')(    conv_QQ_1)
+conv_chinb = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'chi_nb')(conv_QQ_1)
 
 
 model_params = keras.Model(inputs=[input_qBOLD,input_QSM],outputs=[conv_S0,conv_R2,conv_Y,conv_nu,conv_chinb],name="Params_model")
@@ -162,55 +165,41 @@ model_params.compile(
     #metrics=["accuracy"],
 )
 
-#%%
 my_callbacks = [
     tf.keras.callbacks.EarlyStopping(patience=3),
     #tf.keras.callbacks.ModelCheckpoint(filepath='model.{epoch:02d}-{val_loss:.2f}.h5'),
     #tf.keras.callbacks.TensorBoard(log_dir='./logs/2021_07_15-1330')
 ]
 
+#%%
 
-S0_training = Params_training[:,:,:,0]
-R2_training = Params_training[:,:,:,1]
-Y_training = Params_training[:,:,:,2]
-nu_training = Params_training[:,:,:,3]
-chi_nb_training = Params_training[:,:,:,4]
-training_list = [S0_training,R2_training,Y_training,nu_training,chi_nb_training]
+batch_size=100
+train_params_loader = QQBoldParamsLoader(name="training_loader",shuffle=False,n_inputs=2,n_labels=5)
+training_Params_data =train_params_loader(filenames_train_shuffled,batch_size=batch_size,n_epochs=100,read_threads=1)
+val_params_loader = QQBoldParamsLoader(name="val_loader",shuffle=False,n_inputs=2,n_labels=5)
+val_Params_data =train_params_loader(filenames_val_shuffled,batch_size=batch_size,n_epochs=100,read_threads=1)
 
-#batch_size=100
+#data_read = train_params_loader._read_file_and_return_numpy_samples(bytes(filenames_train_shuffled[0],'utf-8'))
+#for i in data_read:
+#    print(i.shape)
 
-#my_training_Params_generator = My_Params_Generator(filenames_train_shuffled,batch_size)
-#my_val_Params_generator = My_Params_Generator(filenames_val_shuffled,batch_size)
-#training_Params_data = tf.data.Dataset.from_generator(
-#                                        my_training_Params_generator,
-#                                        output_types=( (tf.float32,tf.float32),   (tf.float32,tf.float32,tf.float32,tf.float32,tf.float32)    )
-#                                                          )
+#id_tensor0 = tf.squeeze(tf.convert_to_tensor(filenames_train_shuffled[0], dtype=tf.string))
+#id_tensor0
+#id_tensor1 = tf.squeeze(tf.convert_to_tensor(filenames_train_shuffled[1], dtype=tf.string))
+#id_tensor1
+#id_tensor=[id_tensor0,id_tensor1]
+#id_tensor
+#file_list_ds = tf.data.Dataset.from_tensor_slices(id_tensor)
+#test_read_wrapper = train_params_loader._read_wrapper(id_tensor0)
+#test_read_wrapper
+#test=training_Params_data.take(1)
+#for element in test:
+#    print(element)
 
-"""
-output_signature=( (tf.TensorSpec(shape=(30,30,16),dtype=tf.float32) ,
-tf.TensorSpec(shape=(30,30,1),dtype=tf.float32) ),
-(tf.TensorSpec(shape=(30,30,1),dtype=tf.float32),
-tf.TensorSpec(shape=(30,30,1),dtype=tf.float32),
-tf.TensorSpec(shape=(30,30,1),dtype=tf.float32),
-tf.TensorSpec(shape=(30,30,1),dtype=tf.float32),
-tf.TensorSpec(shape=(30,30,1),dtype=tf.float32))
-
-
-
-val_Params_data = tf.data.Dataset.from_generator(
-                                        my_val_Params_generator,
-                                        output_signature=( (tf.TensorSpec(shape(30,30,16),dtype=tf.float32) ,
-                                                            tf.TensorSpec(shape(30,30,1),dtype=tf.float32) ),
-                                                            (tf.TensorSpec(shape(30,30,1),dtype=tf.float32),
-                                                            tf.TensorSpec(shape(30,30,1),dtype=tf.float32),
-                                                            tf.TensorSpec(shape(30,30,1),dtype=tf.float32),
-                                                            tf.TensorSpec(shape(30,30,1),dtype=tf.float32),
-                                                            tf.TensorSpec(shape(30,30,1),dtype=tf.float32))                                                   )
-                                                          )
-                                        )
-"""
-history_params = model_params.fit([qBOLD_training,QSM_training], training_list , batch_size=100, epochs=1000, validation_split=0.2, callbacks=my_callbacks)
-#history_params = model_params.fit(training_Params_data, epochs=100,validation_data=val_Params_data, callbacks=my_callbacks)
+#history_params = model_params.fit([qBOLD_training,QSM_training], training_list , batch_size=100, epochs=1000, validation_split=0.2, callbacks=my_callbacks)
+#steps_per_epoch = len(filenames_train_shuffled)//batch_size,
+#validation_steps = len(filenames_val_shuffled)//batch_size,
+history_params = model_params.fit(training_Params_data, validation_data=val_Params_data, epochs = 100, callbacks=my_callbacks)
 
 #%%
 """
@@ -333,7 +322,9 @@ plt.figure()
 plt.imshow(QSM_test[Number,:,:,0], cmap='gray')
 
 # %%
-""" Second training step """
+"""
+# Second training step
+"""
 
 def f_hyper_tensor(x):
     '''
@@ -391,22 +382,7 @@ def f_qBOLD_tensor(tensor):
     t_Echo_fall=tf.constant([42,45,48], dtype=tf.float32)/1000
     output_Echo_fall = S0 * tf.math.exp(-R2*t_Echo_fall - nu*f_hyper_tensor(dw*(t_Echo_fall-TE)))
     return tf.concat([output_FID,output_Echo_rise,output_Echo_fall],axis=-1)
-"""
-This kind of test does not work because of Dimensions, but it works somehow in the network
-Incompatible shapes: [30,30] vs. [6] [Op:Mul]
 
-
-Params_test.shape
-p.shape
-test_a = tf.convert_to_tensor(Params_test[2,:,:,0])
-test_a.shape
-test_b = tf.convert_to_tensor(Params_test[2,:,:,1])
-test_c = tf.convert_to_tensor(Params_test[2,:,:,2])
-test_d = tf.convert_to_tensor(Params_test[2,:,:,3])
-test_e = tf.convert_to_tensor(Params_test[2,:,:,4])
-
-out = simulateSignal_for_FID([test_a,test_b,test_c,test_d,test_e])
-"""
 
 def f_QSM_tensor(tensor):
     c = tensor[0]
