@@ -37,7 +37,7 @@ input_qBOLD = keras.Input(shape=(30,30,16), name = 'Input_qBOLD')
 input_qBOLD.shape
 input_qBOLD.dtype
 
-n=8
+n=10
 
 conv_qBOLD_1 = keras.layers.Conv2D(n,
                   kernel_size = 3,
@@ -47,28 +47,11 @@ conv_qBOLD_1 = keras.layers.Conv2D(n,
                   activation='sigmoid',
                   name='conv_qBOLD_1')(input_qBOLD)
 
-conv_qBOLD_2 = keras.layers.Conv2D(2*n,
-                  kernel_size = 3,
-                  strides=1,
-                  padding='same',
-                  dilation_rate=1,
-                  activation='sigmoid',
-                  name='conv_qBOLD_2')(conv_qBOLD_1)
 
 
 
-concatenate_qBOLD = layers.Concatenate(name = 'Concat_qBOLD')([input_qBOLD,conv_qBOLD_2])
-conv_qBOLD_3 =keras.layers.Conv2D(3*n,
-                  kernel_size = 3,
-                  strides=1,
-                  padding='same',
-                  dilation_rate=1,
-                  activation='sigmoid',
-                  name='conv_qBOLD_3')(concatenate_qBOLD)
 
-
-
-model_qBOLD = keras.Model(inputs=input_qBOLD, outputs = conv_qBOLD_3, name="qBOLD model")
+model_qBOLD = keras.Model(inputs=input_qBOLD, outputs = conv_qBOLD_1, name="qBOLD model")
 model_qBOLD.summary()
 keras.utils.plot_model(model_qBOLD, show_shapes=True)
 # %%
@@ -82,35 +65,25 @@ conv_QSM_1 = keras.layers.Conv2D(n,
                   activation='sigmoid',
                   name='conv_QSM_1')(input_QSM)
 
-conv_QSM_2 = keras.layers.Conv2D(2*n,
-                  kernel_size=3,
-                  strides=(1),
-                  padding='same',
-                  dilation_rate=1,
-                  activation='sigmoid',
-                  name='conv_QSM_2')(conv_QSM_1)
 
-
-concatenate_QSM = layers.Concatenate(name = 'Concat_QSM')([input_QSM,conv_QSM_2])
-conv_QSM_3 = layers.Conv2D(3*n,3,padding='same',name = 'conv_QSM_3')(concatenate_QSM)
-model_QSM = keras.Model(inputs=input_QSM, outputs = conv_QSM_3, name="QSM model")
+model_QSM = keras.Model(inputs=input_QSM, outputs = conv_QSM_1, name="QSM model")
 model_QSM.summary()
 keras.utils.plot_model(model_QSM, show_shapes=True)
 # %%
 concat_QQ_1 = layers.Concatenate(name = 'concat_QQ_1')([model_qBOLD.output,model_QSM.output])
 
-conv_QQ_1 = layers.Conv2D(48,3,padding='same',name = 'conv_QQ_1')(concat_QQ_1)
-conv_QQ_2 = layers.Conv2D(2*48,3,padding='same',name = 'conv_QQ_2')(conv_QQ_1)
+conv_QQ_1 = layers.Conv2D(2*n,3,padding='same',name = 'conv_QQ_1')(concat_QQ_1)
+#conv_QQ_2 = layers.Conv2D(2*48,3,padding='same',name = 'conv_QQ_2')(conv_QQ_1)
 
 #concat_QQ_2 = layers.Concatenate(name = 'concat_QQ_2')([concat_QQ_1,conv_QQ_2])
 
 
 
-conv_S0 = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'S0')(    conv_QQ_2)
-conv_R2 = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'R2')(    conv_QQ_2)
-conv_Y = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'Y')(     conv_QQ_2)
-conv_nu = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'nu')(    conv_QQ_2)
-conv_chinb = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'chi_nb')(conv_QQ_2)
+conv_S0 = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'S0')(    conv_QQ_1)
+conv_R2 = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'R2')(    conv_QQ_1)
+conv_Y = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'Y')(     conv_QQ_1)
+conv_nu = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'nu')(    conv_QQ_1)
+conv_chinb = layers.Conv2D(1,3,padding='same',activation="sigmoid", name = 'chi_nb')(conv_QQ_1)
 
 
 model_params = keras.Model(inputs=[input_qBOLD,input_QSM],outputs=[conv_S0,conv_R2,conv_Y,conv_nu,conv_chinb],name="Params_model")
@@ -201,7 +174,7 @@ plot_loss(history_params,'nu_')
 plot_loss(history_params,'chi_nb_')
 
 #%%
-model_params.save("models/"+version+ "Model_2D_fully_conv_Params_before_qqbold.h5")
+model_params.save("models/"+version+ "Model_2D_super_simple_Params_before_qqbold.h5")
 
 # %%
 #model_params = keras.models.load_model("models/"+version+ "Model_2D_Params_before_qqbold.h5")
@@ -414,7 +387,7 @@ my_callbacks = [
     #tf.keras.callbacks.ModelCheckpoint(filepath='model.{epoch:02d}-{val_loss:.2f}.h5'),
     #tf.keras.callbacks.TensorBoard(log_dir='./logs/2021_07_15-1330')
 ]
-history = model.fit([qBOLD_training,QSM_training], [qBOLD_training,QSM_training] , batch_size=100, epochs=100, validation_split=0.2, callbacks=my_callbacks)
+history = model.fit([qBOLD_training,QSM_training], [qBOLD_training,QSM_training] , batch_size=100, epochs=1000, validation_split=0.2, callbacks=my_callbacks)
 
 test_scores = model.evaluate([qBOLD_test,QSM_test],  [qBOLD_test,QSM_test], verbose=2)
 #qBOLD_test.shape
@@ -423,9 +396,10 @@ test_scores = model.evaluate([qBOLD_test,QSM_test],  [qBOLD_test,QSM_test], verb
 print("Test loss:", test_scores[0])
 print("Test accuracy:", test_scores[1])
 test_scores_params = model_params.evaluate([qBOLD_test,QSM_test], Params_test, verbose=2)
+
 #%%
-model_params.save("models/"+version+ "Model_2D_fully_conv_Params_after_qqbold.h5")
-model.save("models/"+version+ "Model_2D_fully_conv_Full_qqbold.h5")
+model_params.save("models/"+version+ "Model_2D_super_simple_Params_after_qqbold.h5")
+model.save("models/"+version+ "Model_2D_super_simple_Full_qqbold.h5")
 
 # %%
 print(history.history.keys())
