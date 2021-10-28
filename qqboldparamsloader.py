@@ -7,12 +7,16 @@ import numpy as np
 import SimpleITK as sitk
 import tensorflow as tf
 
-from dataloader import Dataloader
+from skimage import io
+
+
+from .dataloader import Dataloader
+from . import config as cfg
 
 # configure logger
 logger = logging.getLogger(__name__)
 
-class QQBoldLoader(DataLoader):
+class QQBoldParamsLoader(DataLoader):
     """
     seed : int, optional
         set a fixed seed for the loader, by default 42
@@ -40,6 +44,10 @@ class QQBoldLoader(DataLoader):
             sample_buffer_size=sample_buffer_size,
             **kwargs,
         )
+        # set the capacity
+        if sample_buffer_size is None:
+            self.sample_buffer_size = cfg.batch_capacity_train
+
 
     def __call__(
         self,
@@ -75,35 +83,26 @@ class QQBoldLoader(DataLoader):
 
 def _set_up_shapes_and_types(self):
     """
-    sets all important configurations from the config file:
-    - n_channels
+    sets:
     - dtypes
     - dshapes
-
-    also derives:
-    - data_rank
-    - slice_shift
 
     """
     # dtypes and dshapes are defined in the base class
     # pylint: disable=attribute-defined-outside-init
 
     if self.mode is self.MODES.TRAIN or self.mode is self.MODES.VALIDATE:
-        self.dtypes = [cfg.dtype, cfg.dtype]
+        self.dtypes = [tf.float32,tf.float32, tf.float32,tf.float32,tf.float32,tf.float32,tf.float32]
         self.dshapes = [
-            np.array(cfg.train_input_shape),
-            np.array(cfg.train_label_shape),
+            np.array([30,30,16]),np.array([30,30,1]),
+            np.array([30,30,1]),np.array([30,30,1]),np.array([30,30,1]),np.array([30,30,1]),np.array([30,30,1]),
         ]
-        # use the same shape for image and labels
-        assert np.all(
-            self.dshapes[0][:2] == self.dshapes[1][:2]
-        ), "Sample and label shapes do not match."
     else:
         raise ValueError(f"Not allowed mode {self.mode}")
 
-    self.data_rank = len(self.dshapes[0])
+    #self.data_rank = len(self.dshapes[0])
 
-    assert self.data_rank in [3, 4], "The rank should be 3 or 4."
+    #assert self.data_rank in [3, 4], "The rank should be 3 or 4."
 
 def _read_file_and_return_numpy_samples(self, file_name_queue: bytes):
     """Helper function getting the actual samples
@@ -118,6 +117,14 @@ def _read_file_and_return_numpy_samples(self, file_name_queue: bytes):
     np.array, np.array
         The samples and labels
     """
-    data_img, label_img = self._load_file(file_name_queue)
-    samples, labels = self._get_samples_from_volume(data_img, label_img)
-    return samples, labels
+    #data_img, label_img = self._load_file(file_name_queue)
+    #samples, labels = self._get_samples_from_volume(data_img, label_img)
+    qBOLD  = np.array([io.imread('../Brain_Phantom/Patches_no_air_big/qBOLD/qBOLD_' + str(file_name_queue))])
+    qBOLD = np.moveaxis(qBOLD,0,-1)
+    QSM  = np.array([io.imread('../Brain_Phantom/Patches_no_air_big/QSM/QSM_' + str(file_name_queue))])
+    QSM = np.moveaxis(QSM,0,-1)
+    Params  = np.array([io.imread('../Brain_Phantom/Patches_no_air_big/Params/Params_' + str(file_name_queue))])
+    Params = np.moveaxis(Params,0,-1)
+
+
+    return qBOLD,QSM,Params[:,:,:,0],Params[:,:,:,1],Params[:,:,:,2],Params[:,:,:,3],Params[:,:,:,4]

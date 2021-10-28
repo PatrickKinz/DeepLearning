@@ -19,7 +19,7 @@ import h5py
 #Params_training,Params_test,qBOLD_training,qBOLD_test,QSM_training,QSM_test = load_and_prepare_data(data_dir)
 
 #np.savez("../Brain_Phantom/Patches/NumpyArchiv",Params_training=Params_training,Params_test=Params_test,qBOLD_training=qBOLD_training,qBOLD_test=qBOLD_test,QSM_training=QSM_training,QSM_test=QSM_test)
-
+"""
 Dataset=np.load("../Brain_Phantom/Patches_no_air/NumpyArchiv_0noise.npz")
 Params_training=Dataset['Params_training']
 Params_test=Dataset['Params_test']
@@ -27,9 +27,23 @@ qBOLD_training=Dataset['qBOLD_training']
 qBOLD_test=Dataset['qBOLD_test']
 QSM_training=Dataset['QSM_training']
 QSM_test=Dataset['QSM_test']
+"""
 
-version = "no_air_0noise/"
 
+#%%
+version = "no_air_0noise_big/"
+
+filenames=[]
+filenumber=int(848820/20)
+for count in range(filenumber):
+    filenames.append("{0}.TIF".format(count).zfill(6+4))
+filenames_shuffled=shuffle(filenames)
+#split
+threshold = int(filenumber*0.8)
+filenames_train_shuffled=filenames[:threshold]
+filenames_val_shuffled=filenames[threshold:]
+#len(filenames_train_shuffled)
+#filenames_val_shuffled
 # %% Network
 
 input_qBOLD = keras.Input(shape=(30,30,16), name = 'Input_qBOLD')
@@ -163,13 +177,43 @@ nu_training = Params_training[:,:,:,3]
 chi_nb_training = Params_training[:,:,:,4]
 training_list = [S0_training,R2_training,Y_training,nu_training,chi_nb_training]
 
+#batch_size=100
+
+#my_training_Params_generator = My_Params_Generator(filenames_train_shuffled,batch_size)
+#my_val_Params_generator = My_Params_Generator(filenames_val_shuffled,batch_size)
+#training_Params_data = tf.data.Dataset.from_generator(
+#                                        my_training_Params_generator,
+#                                        output_types=( (tf.float32,tf.float32),   (tf.float32,tf.float32,tf.float32,tf.float32,tf.float32)    )
+#                                                          )
+
+"""
+output_signature=( (tf.TensorSpec(shape=(30,30,16),dtype=tf.float32) ,
+tf.TensorSpec(shape=(30,30,1),dtype=tf.float32) ),
+(tf.TensorSpec(shape=(30,30,1),dtype=tf.float32),
+tf.TensorSpec(shape=(30,30,1),dtype=tf.float32),
+tf.TensorSpec(shape=(30,30,1),dtype=tf.float32),
+tf.TensorSpec(shape=(30,30,1),dtype=tf.float32),
+tf.TensorSpec(shape=(30,30,1),dtype=tf.float32))
 
 
+
+val_Params_data = tf.data.Dataset.from_generator(
+                                        my_val_Params_generator,
+                                        output_signature=( (tf.TensorSpec(shape(30,30,16),dtype=tf.float32) ,
+                                                            tf.TensorSpec(shape(30,30,1),dtype=tf.float32) ),
+                                                            (tf.TensorSpec(shape(30,30,1),dtype=tf.float32),
+                                                            tf.TensorSpec(shape(30,30,1),dtype=tf.float32),
+                                                            tf.TensorSpec(shape(30,30,1),dtype=tf.float32),
+                                                            tf.TensorSpec(shape(30,30,1),dtype=tf.float32),
+                                                            tf.TensorSpec(shape(30,30,1),dtype=tf.float32))                                                   )
+                                                          )
+                                        )
+"""
 history_params = model_params.fit([qBOLD_training,QSM_training], training_list , batch_size=100, epochs=1000, validation_split=0.2, callbacks=my_callbacks)
 #history_params = model_params.fit(training_Params_data, epochs=100,validation_data=val_Params_data, callbacks=my_callbacks)
 
 #%%
-
+"""
 S0_test = Params_test[:,:,:,0]
 R2_test = Params_test[:,:,:,1]
 Y_test = Params_test[:,:,:,2]
@@ -347,7 +391,22 @@ def f_qBOLD_tensor(tensor):
     t_Echo_fall=tf.constant([42,45,48], dtype=tf.float32)/1000
     output_Echo_fall = S0 * tf.math.exp(-R2*t_Echo_fall - nu*f_hyper_tensor(dw*(t_Echo_fall-TE)))
     return tf.concat([output_FID,output_Echo_rise,output_Echo_fall],axis=-1)
+"""
+This kind of test does not work because of Dimensions, but it works somehow in the network
+Incompatible shapes: [30,30] vs. [6] [Op:Mul]
 
+
+Params_test.shape
+p.shape
+test_a = tf.convert_to_tensor(Params_test[2,:,:,0])
+test_a.shape
+test_b = tf.convert_to_tensor(Params_test[2,:,:,1])
+test_c = tf.convert_to_tensor(Params_test[2,:,:,2])
+test_d = tf.convert_to_tensor(Params_test[2,:,:,3])
+test_e = tf.convert_to_tensor(Params_test[2,:,:,4])
+
+out = simulateSignal_for_FID([test_a,test_b,test_c,test_d,test_e])
+"""
 
 def f_QSM_tensor(tensor):
     c = tensor[0]
@@ -557,3 +616,4 @@ def check_Pixel(target,prediction,QSM_t,QSM_p,Number):
 
 Number=2
 check_Pixel(qBOLD_test,p_full[0],QSM_test,p_full[1],Number)
+"""
