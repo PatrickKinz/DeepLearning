@@ -16,7 +16,7 @@ import config as cfg
 # configure logger
 logger = logging.getLogger(__name__)
 
-class QQBoldParamsLoader(DataLoader):
+class QQBoldParamsLoaderNoisy(DataLoader):
     """
     seed : int, optional
         set a fixed seed for the loader, by default 42
@@ -121,8 +121,8 @@ class QQBoldParamsLoader(DataLoader):
         Dataset=np.load("../Brain_Phantom/Patches_no_air_big/NumpyArchives/NumpyArchiv_" + file_name_queue.decode("utf-8"))
         #Dataset=np.load("../Brain_Phantom/Patches_no_air_big/NumpyArchives/NumpyArchiv_000000.npz")
         Params=Dataset['Params']
-        qBOLD=Dataset['qBOLD']
-        QSM=Dataset['QSM']
+        qBOLD=Dataset['qBOLD'] + np.random.normal(loc=0,scale=1./100,size=Dataset['qBOLD']) #max Amplitude = 1, so 1% noise
+        QSM=Dataset['QSM'] + np.random.normal(loc=0,scale=0.1/100,size=Dataset['QSM']) #max Amplitude = 0.1, so 1% noise
         #Params.shape
         #qBOLD.shape
         #QSM.shape
