@@ -11,7 +11,7 @@ from tqdm import tqdm  #for progress bar
 
 import h5py
 
-from qqboldparamsloader import QQBoldParamsLoader
+from qqboldparamsloadernoisy import QQBoldParamsLoader
 
 #tf.keras.mixed_precision.set_global_policy("mixed_float16") #accelerates training, expecially with tensor cores on RTX cards
 #from My_Custom_Generator import My_Params_Generator,My_Signal_Generator
@@ -32,7 +32,7 @@ QSM_test=Dataset['QSM_test']
 
 
 #%%
-version = "no_air_0noise_big/"
+version = "no_air_1Percentnoise_big/"
 
 filenames=[]
 filenumber=int(848820)
