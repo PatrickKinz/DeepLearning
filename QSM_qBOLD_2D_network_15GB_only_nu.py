@@ -8,7 +8,7 @@ import numpy as np
 from numpy.random import rand, randn,shuffle
 import matplotlib.pyplot as plt
 from tqdm import tqdm  #for progress bar
-
+import levenberg_marquardt as lm
 import h5py
 #from QSM_qBOLD_2D_load_and_prepare_data import load_and_prepare_data
 
@@ -22,14 +22,14 @@ import h5py
 
 Dataset_train=np.load("../Brain_Phantom/Patches_no_air_big/15GB_1Pnoise_train_val.npz")
 Dataset_test=np.load("../Brain_Phantom/Patches_no_air_big/15GB_1Pnoise_test.npz")
-S0_train=Dataset_train['S0']
-R2_train=Dataset_train['R2']
+#S0_train=Dataset_train['S0']
+#R2_train=Dataset_train['R2']
 #Y_train=Dataset_train['Y']
 nu_train=Dataset_train['nu']
 #chi_nb_train=Dataset_train['chi_nb']
 
-S0_test=Dataset_test['S0']
-R2_test=Dataset_test['R2']
+#S0_test=Dataset_test['S0']
+#R2_test=Dataset_test['R2']
 #Y_test=Dataset_test['Y']
 nu_test=Dataset_test['nu']
 #chi_nb_test=Dataset_test['chi_nb']
@@ -60,6 +60,13 @@ QSM_training=Dataset_train['QSM']
 QSM_test=Dataset_test['QSM']
 
 version = "no_air_1Pnoise_15GB_only_nu/"
+#%%
+features_dataset=tf.data.Dataset.from_tensor_slices((qBOLD_training,QSM_training))
+labels_dataset=tf.data.Dataset.from_tensor_slices(nu_train)
+train_dataset=tf.data.Dataset.zip((features_dataset,labels_dataset))
+batch_size=2000
+train_dataset = train_dataset.batch(batch_size).cache()
+train_dataset = train_dataset.prefetch(tf.data.experimental.AUTOTUNE)
 
 # %% Network
 
@@ -176,10 +183,19 @@ my_callbacks = [
 
 #training_list = [S0_train,R2_train,Y_train,nu_train,chi_nb_train]
 
-#%%
+#%% train normal
 
 history_params = model_params.fit([qBOLD_training,QSM_training], nu_train , batch_size=2000, epochs=100, validation_split=0.1/0.9, callbacks=my_callbacks)
 #history_params = model_params.fit(training_Params_data, epochs=100,validation_data=val_Params_data, callbacks=my_callbacks)
+#%%
+model_wrapper = lm.ModelWrapper(model_params)
+model_wrapper.compile(
+    optimizer=tf.keras.optimizers.SGD(learning_rate=1.0),
+    loss=lm.MeanSquaredError())
+
+history_params = model_wrapper.fit([qBOLD_training,QSM_training], nu_train , batch_size=2000, epochs=20, validation_split=0.1/0.9)
+
+
 #%%
 model_params.save("models/"+version+ "Model_2D_fully_conv_Params_S0_R2_removed.h5")
 np.save('models/'+version+'history_params_2D_fully_conv_S0_R2_removed.npy',history_params.history)
