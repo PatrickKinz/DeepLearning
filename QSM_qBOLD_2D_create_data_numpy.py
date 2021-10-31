@@ -207,7 +207,7 @@ examples_for_cropping()
 def create_images(seg):
     nda_seg = sitk.GetArrayViewFromImage(seg)
     count = 0 #count patches
-    for i in tqdm(range(seg.GetDepth())):
+    for i in tqdm(range(seg.GetDepth())): #seg.GetDepth()
         #crop empty area around brain
         seg_slice = threshold_based_crop(sitk.GetImageFromArray(nda_seg[i,:,:]))
         nda_seg_slice = sitk.GetArrayFromImage(seg_slice)

@@ -11,13 +11,13 @@ from tqdm import tqdm  #for progress bar
 
 import h5py
 #from QSM_qBOLD_2D_load_and_prepare_data import load_and_prepare_data
-
+print(tf.__version__)
 #%%
 #data_dir = "../Brain_Phantom/Patches/"
 #Params_training,Params_test,qBOLD_training,qBOLD_test,QSM_training,QSM_test = load_and_prepare_data(data_dir)
 
 #np.savez("../Brain_Phantom/Patches/NumpyArchiv",Params_training=Params_training,Params_test=Params_test,qBOLD_training=qBOLD_training,qBOLD_test=qBOLD_test,QSM_training=QSM_training,QSM_test=QSM_test)
-Dataset=np.load("../Brain_Phantom/Patches_no_air/NumpyArchiv_0noise.npz")
+Dataset=np.load("../Brain_Phantom/Patches_no_air/NumpyArchiv.npz")
 Params_training=Dataset['Params_training']
 Params_test=Dataset['Params_test']
 qBOLD_training=Dataset['qBOLD_training']
@@ -25,7 +25,9 @@ qBOLD_test=Dataset['qBOLD_test']
 QSM_training=Dataset['QSM_training']
 QSM_test=Dataset['QSM_test']
 
-version = "no_air_0noise/"
+qBOLD_training.shape
+
+version = "no_air/"
 
 # %% Network
 
@@ -203,7 +205,7 @@ plot_loss(history_params,'nu_')
 plot_loss(history_params,'chi_nb_')
 
 #%%
-model_params.save("models/"+version+ "Model_2D_Params_before_qqbold.h5")
+model_params.save("models/"+version+ "Model_2D_Params_before_qqbold_2021-10-31.h5")
 
 # %%
 #model_params = keras.models.load_model("models/"+version+ "Model_2D_Params_before_qqbold.h5")
@@ -279,11 +281,150 @@ def check_Params(Params_test,p,Number):
     ax[8].hist(np.squeeze(p[3][Number,:,:,:]).ravel())
     ax[9].hist(np.squeeze(p[4][Number,:,:,:]).ravel())
     plt.show()
+
 #%%
 Number = 2
 check_Params(Params_test,p,Number)
 
 
+#%%
+def translate_Params(Params):
+    S0 = Params[0]   #S0     = 1000 + 200 * randn(N).T
+    R2 = (30-1) * Params[1] + 1  #from 1 to 30
+    SaO2 = 0.98
+    Y  = (SaO2 - 0.01) * Params[2] + 0.01   #from 1% to 98%
+    nu = (0.1 - 0.001) * Params[3] + 0.001  #from 0.1% to 10%
+    chi_nb = ( 0.1-(-0.1) ) * Params[4] - 0.1 #fr
+    return [S0,R2,Y,nu,chi_nb]
+
+
+def check_Params_transformed(Params_test,p,Number):
+    fig, axes = plt.subplots(nrows=2, ncols=5,figsize=(15,5))
+    ax = axes.ravel()
+    P0 = ax[0].imshow(Params_test[0][Number,:,:], cmap='gray')
+    P0.set_clim(.0,1)
+    ax[0].title.set_text('S0')
+    plt.colorbar(P0,ax=ax[0])
+    P1 = ax[1].imshow(Params_test[1][Number,:,:], cmap='gray')
+    P1.set_clim(0,30)
+    ax[1].title.set_text('R2')
+    plt.colorbar(P1,ax=ax[1])
+    P2 = ax[2].imshow(Params_test[2][Number,:,:], cmap='gray')
+    P2.set_clim(.0,1)
+    ax[2].title.set_text('Y')
+    plt.colorbar(P2,ax=ax[2])
+    P3 = ax[3].imshow(Params_test[3][Number,:,:], cmap='gray')
+    P3.set_clim(0,0.1)
+    ax[3].title.set_text('nu')
+    plt.colorbar(P3,ax=ax[3])
+    P4 = ax[4].imshow(Params_test[4][Number,:,:], cmap='gray')
+    P4.set_clim(-.1,.1)
+    ax[4].title.set_text('chi_nb')
+    plt.colorbar(P4,ax=ax[4])
+    P5 = ax[5].imshow(np.squeeze(p[0][Number,:,:,:]), cmap='gray')
+    P5.set_clim(.0,1)
+    plt.colorbar(P5,ax=ax[5])
+    P6 = ax[6].imshow(np.squeeze(p[1][Number,:,:,:]), cmap='gray')
+    P6.set_clim(0,30)
+    plt.colorbar(P6,ax=ax[6])
+    P7 = ax[7].imshow(np.squeeze(p[2][Number,:,:,:]), cmap='gray')
+    P7.set_clim(.0,1)
+    plt.colorbar(P7,ax=ax[7])
+    P8 = ax[8].imshow(np.squeeze(p[3][Number,:,:,:]), cmap='gray')
+    P8.set_clim(.0,0.1)
+    plt.colorbar(P8,ax=ax[8])
+    P9 = ax[9].imshow(np.squeeze(p[4][Number,:,:,:]), cmap='gray')
+    P9.set_clim(-.1,.1)
+    plt.colorbar(P9,ax=ax[9])
+    plt.show()
+
+    fig, axes = plt.subplots(nrows=1, ncols=5,figsize=(15,5))
+    ax = axes.ravel()
+    ax[0].plot(Params_test[0][Number,15,:],'.')
+    ax[0].plot(np.squeeze(p[0][Number,15,:,:]),'.')
+    ax[0].set_ylim(0,1)
+    ax[0].title.set_text('S0')
+    ax[1].plot(Params_test[1][Number,15,:],'.')
+    ax[1].plot(np.squeeze(p[1][Number,15,:,:]),'.')
+    ax[1].set_ylim(0,30)
+    ax[1].title.set_text('R2')
+    ax[2].plot(Params_test[2][Number,15,:],'.')
+    ax[2].plot(np.squeeze(p[2][Number,15,:,:]),'.')
+    ax[2].set_ylim(0,1)
+    ax[2].title.set_text('Y')
+    ax[3].plot(Params_test[3][Number,15,:],'.')
+    ax[3].plot(np.squeeze(p[3][Number,15,:,:]),'.')
+    ax[3].set_ylim(0,0.1)
+    ax[3].title.set_text('nu')
+    ax[4].plot(Params_test[4][Number,15,:],'.')
+    ax[4].plot(np.squeeze(p[4][Number,15,:,:]),'.')
+    ax[4].set_ylim(-.1,.1)
+    ax[4].title.set_text('chi_nb')
+    plt.show()
+
+
+    fig, axes = plt.subplots(nrows=2, ncols=5,figsize=(15,5))
+    ax = axes.ravel()
+    ax[0].hist(Params_test[0][Number,:,:].numpy().ravel(),range=((0,1)))
+    ax[0].title.set_text('S0')
+    ax[1].hist(Params_test[1][Number,:,:].numpy().ravel(),range=((0,30)))
+    ax[1].title.set_text('R2')
+    ax[2].hist(Params_test[2][Number,:,:].numpy().ravel(),range=((0,1)))
+    ax[2].title.set_text('Y')
+    ax[3].hist(Params_test[3][Number,:,:].numpy().ravel(),range=((0,0.1)))
+    ax[3].title.set_text('nu')
+    ax[4].hist(Params_test[4][Number,:,:].numpy().ravel(),range=((-.1,.1)))
+    ax[4].title.set_text('chi_nb')
+    ax[5].hist(np.squeeze(p[0][Number,:,:,:]).ravel(),range=((0,1)))
+    ax[6].hist(np.squeeze(p[1][Number,:,:,:]).ravel(),range=((0,30)))
+    ax[7].hist(np.squeeze(p[2][Number,:,:,:]).ravel(),range=((0,1)))
+    ax[8].hist(np.squeeze(p[3][Number,:,:,:]).ravel(),range=((0,.1)))
+    ax[9].hist(np.squeeze(p[4][Number,:,:,:]).ravel(),range=((-.1,.1)))
+    plt.show()
+
+def check_Params_transformed_hist(Params_test,p):
+    fig, axes = plt.subplots(nrows=2, ncols=5,figsize=(15,5))
+    ax = axes.ravel()
+    ax[0].hist(Params_test[0][:,:,:].numpy().ravel(),range=((0,1)))
+    ax[0].title.set_text('S0')
+    ax[1].hist(Params_test[1][:,:,:].numpy().ravel(),range=((0,30)))
+    ax[1].title.set_text('R2')
+    ax[2].hist(Params_test[2][:,:,:].numpy().ravel(),range=((0,1)))
+    ax[2].title.set_text('Y')
+    ax[3].hist(Params_test[3][:,:,:].numpy().ravel(),range=((0,0.1)))
+    ax[3].title.set_text('nu')
+    ax[4].hist(Params_test[4][:,:,:].numpy().ravel(),range=((-.1,.1)))
+    ax[4].title.set_text('chi_nb')
+    ax[5].hist(np.squeeze(p[0][:,:,:,:]).ravel(),range=((0,1)))
+    ax[6].hist(np.squeeze(p[1][:,:,:,:]).ravel(),range=((0,30)))
+    ax[7].hist(np.squeeze(p[2][:,:,:,:]).ravel(),range=((0,1)))
+    ax[8].hist(np.squeeze(p[3][:,:,:,:]).ravel(),range=((0,.1)))
+    ax[9].hist(np.squeeze(p[4][:,:,:,:]).ravel(),range=((-.1,.1)))
+    plt.show()
+
+    fig, axes = plt.subplots(nrows=1, ncols=5,figsize=(15,3))
+    ax = axes.ravel()
+    ax[0].hist2d(x=Params_test[0][:,:,:].numpy().ravel(),y=np.squeeze(p[0][:,:,:,:]).ravel(),bins=30,range=((0,1),(0,1)))
+    ax[0].title.set_text('S0')
+    ax[1].hist2d(x=Params_test[1][:,:,:].numpy().ravel(),y=np.squeeze(p[1][:,:,:,:]).ravel(),bins=30,range=((0,30),(0,30)))
+    ax[1].title.set_text('R2')
+    ax[2].hist2d(x=Params_test[2][:,:,:].numpy().ravel(),y=np.squeeze(p[2][:,:,:,:]).ravel(),bins=30,range=((0,1),(0,1)))
+    ax[2].title.set_text('Y')
+    ax[3].hist2d(x=Params_test[3][:,:,:].numpy().ravel(),y=np.squeeze(p[3][:,:,:,:]).ravel(),bins=30,range=((0,.1),(0,.1)))
+    ax[3].title.set_text('nu')
+    ax[4].hist2d(x=Params_test[4][:,:,:].numpy().ravel(),y=np.squeeze(p[4][:,:,:,:]).ravel(),bins=30,range=((-.1,.1),(-.1,.1)))
+    ax[4].title.set_text('chi_nb')
+    plt.show()
+
+#%%
+Number=4
+label_transformed=translate_Params(test_list)
+label_transformed[0][1,:,:]
+prediction_transformed=translate_Params(p)
+check_Params_transformed(label_transformed,prediction_transformed,Number)
+
+
+check_Params_transformed_hist(label_transformed,prediction_transformed)
 #%%
 Number=2
 QSM_test.shape

@@ -10,8 +10,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm  #for progress bar
 
 import h5py
-
-from qqboldparamsloadernoisy import QQBoldParamsLoader
+#from QSM_qBOLD_2D_load_and_prepare_data import load_and_prepare_data
 
 #tf.keras.mixed_precision.set_global_policy("mixed_float16") #accelerates training, expecially with tensor cores on RTX cards
 #from My_Custom_Generator import My_Params_Generator,My_Signal_Generator
@@ -20,33 +19,29 @@ from qqboldparamsloadernoisy import QQBoldParamsLoader
 #Params_training,Params_test,qBOLD_training,qBOLD_test,QSM_training,QSM_test = load_and_prepare_data(data_dir)
 
 #np.savez("../Brain_Phantom/Patches/NumpyArchiv",Params_training=Params_training,Params_test=Params_test,qBOLD_training=qBOLD_training,qBOLD_test=qBOLD_test,QSM_training=QSM_training,QSM_test=QSM_test)
-"""
-Dataset=np.load("../Brain_Phantom/Patches_no_air/NumpyArchiv_0noise.npz")
-Params_training=Dataset['Params_training']
-Params_test=Dataset['Params_test']
-qBOLD_training=Dataset['qBOLD_training']
-qBOLD_test=Dataset['qBOLD_test']
-QSM_training=Dataset['QSM_training']
-QSM_test=Dataset['QSM_test']
-"""
 
+Dataset_train=np.load("../Brain_Phantom/Patches_no_air_big/15GB_1Pnoise_train_val.npz")
+Dataset_test=np.load("../Brain_Phantom/Patches_no_air_big/15GB_1Pnoise_test.npz")
+S0_train=Dataset_train['S0']
+R2_train=Dataset_train['R2']
+Y_train=Dataset_train['Y']
+nu_train=Dataset_train['nu']
+chi_nb_train=Dataset_train['chi_nb']
 
-#%%
-version = "no_air_1Percentnoise_big/"
+S0_test=Dataset_test['S0']
+R2_test=Dataset_test['R2']
+Y_test=Dataset_test['Y']
+nu_test=Dataset_test['nu']
+chi_nb_test=Dataset_test['chi_nb']
 
-filenames=[]
-filenumber=int(848820)
-for count in range(filenumber):
-    filenames.append("{0}.npz".format(count).zfill(6+4))
-filenames_shuffled=shuffle(filenames)
-#split
-threshold1 = int(filenumber*0.8)
-threshold2 = int(filenumber*0.9)
-filenames_train_shuffled=filenames[:threshold1]
-filenames_val_shuffled=filenames[threshold1:threshold2]
-filenames_test_shuffled=filenames[threshold2:]
-len(filenames_train_shuffled)
-#filenames_val_shuffled
+qBOLD_training=Dataset_train['qBOLD']
+qBOLD_test=Dataset_test['qBOLD']
+
+QSM_training=Dataset_train['QSM']
+QSM_test=Dataset_test['QSM']
+
+version = "no_air_1Pnoise_15GB/"
+
 # %% Network
 
 input_qBOLD = keras.Input(shape=(30,30,16), name = 'Input_qBOLD')
@@ -64,28 +59,10 @@ conv_qBOLD_1 = keras.layers.Conv2D(n,
                   activation='sigmoid',
                   name='conv_qBOLD_1')(input_qBOLD)
 
-"""
-conv_qBOLD_2 = keras.layers.Conv2D(2*n,
-                  kernel_size = 3,
-                  strides=1,
-                  padding='same',
-                  dilation_rate=1,
-                  activation='sigmoid',
-                  name='conv_qBOLD_2')(conv_qBOLD_1)
 
 
 
-concatenate_qBOLD = layers.Concatenate(name = 'Concat_qBOLD')([input_qBOLD,conv_qBOLD_2])
-conv_qBOLD_3 =keras.layers.Conv2D(3*n,
-                  kernel_size = 3,
-                  strides=1,
-                  padding='same',
-                  dilation_rate=1,
-                  activation='sigmoid',
-                  name='conv_qBOLD_3')(concatenate_qBOLD)
 
-
-"""
 model_qBOLD = keras.Model(inputs=input_qBOLD, outputs = conv_qBOLD_1, name="qBOLD model")
 model_qBOLD.summary()
 keras.utils.plot_model(model_qBOLD, show_shapes=True)
@@ -99,19 +76,8 @@ conv_QSM_1 = keras.layers.Conv2D(n,
                   dilation_rate=1,
                   activation='sigmoid',
                   name='conv_QSM_1')(input_QSM)
-"""
-conv_QSM_2 = keras.layers.Conv2D(2*n,
-                  kernel_size=3,
-                  strides=(1),
-                  padding='same',
-                  dilation_rate=1,
-                  activation='sigmoid',
-                  name='conv_QSM_2')(conv_QSM_1)
 
 
-concatenate_QSM = layers.Concatenate(name = 'Concat_QSM')([input_QSM,conv_QSM_2])
-conv_QSM_3 = layers.Conv2D(3*n,3,padding='same',name = 'conv_QSM_3')(concatenate_QSM)
-"""
 model_QSM = keras.Model(inputs=input_QSM, outputs = conv_QSM_1, name="QSM model")
 model_QSM.summary()
 keras.utils.plot_model(model_QSM, show_shapes=True)
@@ -162,64 +128,43 @@ model_params.compile(
     loss=losses,
     loss_weights=lossWeights,
     optimizer=opt,
-    metrics=[tf.keras.metrics.MeanAbsolutePercentageError()],
+    #metrics=[tf.keras.metrics.MeanAbsolutePercentageError()],
     #metrics=[tf.keras.metrics.MeanSquaredError()],
     #metrics=["accuracy"],
 )
 
+#%%
 my_callbacks = [
-    tf.keras.callbacks.EarlyStopping(patience=3),
+    tf.keras.callbacks.EarlyStopping(patience=3),#
     #tf.keras.callbacks.ModelCheckpoint(filepath='model.{epoch:02d}-{val_loss:.2f}.h5'),
     #tf.keras.callbacks.TensorBoard(log_dir='./logs/2021_07_15-1330')
 ]
 
+
+training_list = [S0_train,R2_train,Y_train,nu_train,chi_nb_train]
+
+
+
+#history_params = model_params.fit([qBOLD_training,QSM_training], training_list , batch_size=100, epochs=100, validation_split=0.1/0.9, callbacks=my_callbacks)
+#history_params = model_params.fit(training_Params_data, epochs=100,validation_data=val_Params_data, callbacks=my_callbacks)
 #%%
-
-batch_size=100
-train_params_loader = QQBoldParamsLoader(name="training_loader",shuffle=False,n_inputs=2,n_labels=5)
-training_Params_data =train_params_loader(filenames_train_shuffled,batch_size=batch_size,read_threads=1)
-val_params_loader = QQBoldParamsLoader(name="val_loader",shuffle=False,n_inputs=2,n_labels=5)
-val_Params_data =train_params_loader(filenames_val_shuffled,batch_size=batch_size,read_threads=1)
-
-#data_read = train_params_loader._read_file_and_return_numpy_samples(bytes(filenames_train_shuffled[0],'utf-8'))
-#for i in data_read:
-#    print(i.shape)
-
-#id_tensor0 = tf.squeeze(tf.convert_to_tensor(filenames_train_shuffled[0], dtype=tf.string))
-#id_tensor0
-#id_tensor1 = tf.squeeze(tf.convert_to_tensor(filenames_train_shuffled[1], dtype=tf.string))
-#id_tensor1
-#id_tensor=[id_tensor0,id_tensor1]
-#id_tensor
-#file_list_ds = tf.data.Dataset.from_tensor_slices(id_tensor)
-#test_read_wrapper = train_params_loader._read_wrapper(id_tensor0)
-#test_read_wrapper
-#test=training_Params_data.take(1)
-#for element in test:
-#    print(element)
-
-#history_params = model_params.fit([qBOLD_training,QSM_training], training_list , batch_size=100, epochs=1000, validation_split=0.2, callbacks=my_callbacks)
-#steps_per_epoch = len(filenames_train_shuffled)//batch_size,
-#validation_steps = len(filenames_val_shuffled)//batch_size,
-history_params = model_params.fit(training_Params_data, validation_data=val_Params_data, epochs = 100, callbacks=my_callbacks)
-
-#%%
+model_params.save("models/"+version+ "Model_2D_fully_conv_Params_before_qqbold_5_times_weights.h5")
 np.save('models/'+version+'history_params_2D_fully_conv_Params_before_qqbold_5_times_weights.npy',history_params.history)
-np.save('models/'+version+'filenames_test_2D_fully_conv_Params_before_qqbold_5_times_weights.npy',filenames_test_shuffled)
-test_params_loader = QQBoldParamsLoader(name="test_loader",shuffle=False,n_inputs=2,n_labels=5)
-test_Params_data =train_params_loader(filenames_test_shuffled,batch_size=batch_size,read_threads=1)
+
+#%%
+
+test_list = [S0_test,R2_test,Y_test,nu_test,chi_nb_test]
 
 
-test_scores = model_params.evaluate(test_Params_data, verbose=2)
+test_scores = model_params.evaluate([qBOLD_test,QSM_test], test_list, verbose=2)
 print("Test loss:", test_scores[0])
 print("Test accuracy:", test_scores[1])
-
 #%%
 print(history_params.history.keys())
 def plot_loss(history, keyword):
     plt.figure()
-    plt.plot(history.history[keyword + 'loss'],'o-')
-    plt.plot(history.history['val_'+keyword+'loss'],'o-')
+    plt.plot(history.history[keyword + 'loss'])
+    plt.plot(history.history['val_'+keyword+'loss'])
     plt.yscale('log')
     plt.title('model ' +keyword+ 'loss')
     plt.ylabel('loss')
@@ -233,21 +178,13 @@ plot_loss(history_params,'Y_')
 plot_loss(history_params,'nu_')
 plot_loss(history_params,'chi_nb_')
 
-#%%
-model_params.save("models/"+version+ "Model_2D_fully_conv_Params_before_qqbold_5_times_weights.h5")
 
 # %%
 #model_params = keras.models.load_model("models/"+version+ "Model_2D_Params_before_qqbold.h5")
 #model_params.summary()
-data_Params_reduced = test_Params_data.take(1)
-data_element=list(data_Params_reduced.as_numpy_iterator())[0]
-len(data_element) #2 x and y
-len(data_element[1]) #5 the 5 parameters
-data_element[1][0].shape
-p = model_params.predict(data_element)
-len(p)
+p = model_params.predict([qBOLD_test,QSM_test])
 p[0].shape
-
+#%%
 #%%
 def check_Params(Params_test,p,Number):
     fig, axes = plt.subplots(nrows=2, ncols=5,figsize=(15,5))
@@ -334,7 +271,7 @@ def check_Params(Params_test,p,Number):
     plt.show()
 #%%
 Number = 5
-check_Params(data_element[1],p,Number)
+check_Params(test_list,p,Number)
 
 #%%
 def translate_Params(Params):
@@ -431,30 +368,9 @@ def check_Params_transformed(Params_test,p,Number):
     ax[9].hist(np.squeeze(p[4][Number,:,:,:]).ravel(),range=((-.1,.1)))
     plt.show()
 
-label_transformed=translate_Params(data_element[1])
+label_transformed=translate_Params(test_list)
 prediction_transforemd=translate_Params(p)
 check_Params_transformed(label_transformed,prediction_transforemd,Number)
-
-#%% calculate MSE, histogram for whole test set like in Simons thesis
-m_S0 = tf.keras.metrics.MeanRelativeError(normalizer=label_transformed[0])
-m_S0.update_state(label_transformed[0],prediction_transforemd[0])
-m_S0.result().numpy()
-
-m_R2 = tf.keras.metrics.MeanRelativeError(normalizer=label_transformed[1])
-m_R2.update_state(label_transformed[1],prediction_transforemd[1])
-m_R2.result().numpy()
-
-m_Y = tf.keras.metrics.MeanRelativeError(normalizer=label_transformed[2])
-m_Y.update_state(label_transformed[2],prediction_transforemd[2])
-m_Y.result().numpy()
-
-m_nu = tf.keras.metrics.MeanRelativeError(normalizer=label_transformed[3])
-m_nu.update_state(label_transformed[3],prediction_transforemd[3])
-m_nu.result().numpy()
-
-m_chi_nb = tf.keras.metrics.MeanRelativeError(normalizer=label_transformed[4])
-m_chi_nb.update_state(label_transformed[4],prediction_transforemd[4])
-m_chi_nb.result().numpy()
 
 
 #%%
@@ -464,9 +380,7 @@ plt.figure()
 plt.imshow(QSM_test[Number,:,:,0], cmap='gray')
 
 # %%
-
-# Second training step
-"""
+""" Second training step """
 
 def f_hyper_tensor(x):
     '''
@@ -563,13 +477,34 @@ qBOLD_layer = layers.Lambda(f_qBOLD_tensor, name = 'qBOLD')(model_params.output)
 QSM_layer = layers.Lambda(f_QSM_tensor, name = 'QSM')(model_params.output[2:5])
 model_params.output[2:5]
 
-model = keras.Model(inputs=[input_qBOLD,input_QSM],outputs=[qBOLD_layer,QSM_layer],name="Lambda_model")
+model = keras.Model(inputs=[input_qBOLD,input_QSM],outputs=[qBOLD_layer,QSM_layer,model_params.output[:]],name="Lambda_model")
 model.summary()
 keras.utils.plot_model(model, show_shapes=True)
 
 # %% Train full model
+loss=keras.losses.MeanSquaredError()
+losses = {
+    "qBOLD":loss,
+    "QSM":loss,
+    "S0":loss,
+    "R2":loss,
+    "Y":loss,
+    "nu":loss,
+    "chi_nb":loss,
+}
+lossWeights = {
+    "qBOLD":1.0,
+    "QSM":1.0,
+    "S0":1.0,
+    "R2":1.0,
+    "Y":1.0,
+    "nu":1.0,
+    "chi_nb":1.0,
+    }
+
 model.compile(
-    loss=keras.losses.MeanSquaredError(),
+    loss=losses,
+    loss_weights=lossWeights,
     optimizer=opt,
     metrics=[tf.keras.metrics.MeanAbsolutePercentageError()],
     #metrics=["accuracy"],
@@ -580,18 +515,19 @@ my_callbacks = [
     #tf.keras.callbacks.ModelCheckpoint(filepath='model.{epoch:02d}-{val_loss:.2f}.h5'),
     #tf.keras.callbacks.TensorBoard(log_dir='./logs/2021_07_15-1330')
 ]
-history = model.fit([qBOLD_training,QSM_training], [qBOLD_training,QSM_training] , batch_size=100, epochs=1000, validation_split=0.2, callbacks=my_callbacks)
+history = model.fit([qBOLD_training,QSM_training], [qBOLD_training,QSM_training,training_list[:]] , batch_size=100, epochs=100, validation_split=0.1/0.9, callbacks=my_callbacks)
 
-test_scores = model.evaluate([qBOLD_test,QSM_test],  [qBOLD_test,QSM_test], verbose=2)
+test_scores = model.evaluate([qBOLD_test,QSM_test],  [qBOLD_test,QSM_test,test_list[:]], verbose=2)
 #qBOLD_test.shape
 #qBOLD_test2 = tf.expand_dims(qBOLD_test,axis=3)
 #qBOLD_test2.shape
 print("Test loss:", test_scores[0])
 print("Test accuracy:", test_scores[1])
-test_scores_params = model_params.evaluate([qBOLD_test,QSM_test], Params_test, verbose=2)
+test_scores_params = model_params.evaluate([qBOLD_test,QSM_test], test_list, verbose=2)
 
-model_params.save("models/"+version+ "Model_2D_fully_conv_Params_after_qqbold.h5")
-model.save("models/"+version+ "Model_2D_fully_conv_Full_qqbold.h5")
+#%%
+model_params.save("models/"+version+ "Model_2D_fully_conv_Params_combined.h5")
+model.save("models/"+version+ "Model_2D_fully_conv_Full_combined.h5")
 
 # %%
 print(history.history.keys())
@@ -604,7 +540,7 @@ p_after = model_params.predict([qBOLD_test,QSM_test])
 #%%
 Number = 2
 
-check_Params(Params_test,p_after,Number)
+check_Params(test_list,p_after,Number)
 
 #%%
 def check_QSM(t,p,Number): #target prediction
@@ -633,47 +569,47 @@ def check_qBOLD(t,p,Number): #target prediction
     P0=ax[0].imshow(t[Number,:,:,0], cmap='gray')
     ax[0].title.set_text('3ms')
     #plt.colorbar(P0,ax=ax[0])
-    P0.set_clim(.0,.6)
+    P0.set_clim(.0,1)
 
     P1=ax[1].imshow(t[Number,:,:,3], cmap='gray')
     ax[1].title.set_text('9ms')
     #plt.colorbar(P1,ax=ax[1])
-    P1.set_clim(.0,.6)
+    P1.set_clim(.0,1)
 
     P2=ax[2].imshow(t[Number,:,:,7], cmap='gray')
     ax[2].title.set_text('21ms')
     #plt.colorbar(P2,ax=ax[2])
-    P2.set_clim(.0,.6)
+    P2.set_clim(.0,1)
 
     P3=ax[3].imshow(t[Number,:,:,11], cmap='gray')
     ax[3].title.set_text('33ms')
     #plt.colorbar(P3,ax=ax[3])
-    P3.set_clim(.0,.6)
+    P3.set_clim(.0,1)
 
     P4=ax[4].imshow(t[Number,:,:,15], cmap='gray')
     ax[4].title.set_text('45ms')
     plt.colorbar(P4,ax=ax[4])
-    P4.set_clim(.0,.6)
+    P4.set_clim(.0,1)
 
     P5=ax[5].imshow(p[Number,:,:,0], cmap='gray')
     #plt.colorbar(P5,ax=ax[5])
-    P5.set_clim(.0,.6)
+    P5.set_clim(.0,1)
 
     P6=ax[6].imshow(p[Number,:,:,3], cmap='gray')
     #plt.colorbar(P6,ax=ax[6])
-    P6.set_clim(.0,.6)
+    P6.set_clim(.0,1)
 
     P7=ax[7].imshow(p[Number,:,:,7], cmap='gray')
     #plt.colorbar(P7,ax=ax[7])
-    P7.set_clim(.0,.6)
+    P7.set_clim(.0,1)
 
     P8=ax[8].imshow(p[Number,:,:,11], cmap='gray')
     #plt.colorbar(P8,ax=ax[8])
-    P8.set_clim(.0,.6)
+    P8.set_clim(.0,1)
 
     P9=ax[9].imshow(p[Number,:,:,15], cmap='gray')
     plt.colorbar(P9,ax=ax[9])
-    P9.set_clim(.0,.6)
+    P9.set_clim(.0,1)
     plt.show()
 
 
@@ -734,4 +670,3 @@ def check_Pixel(target,prediction,QSM_t,QSM_p,Number):
 
 Number=2
 check_Pixel(qBOLD_test,p_full[0],QSM_test,p_full[1],Number)
-"""
