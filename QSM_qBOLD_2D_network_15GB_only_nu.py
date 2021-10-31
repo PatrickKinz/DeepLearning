@@ -33,16 +33,16 @@ R2_test=Dataset_test['R2']
 #Y_test=Dataset_test['Y']
 nu_test=Dataset_test['nu']
 #chi_nb_test=Dataset_test['chi_nb']
-
+"""
 qBOLD_training=Dataset_train['qBOLD']
-#qBOLD_training = qBOLD_training/np.expand_dims(qBOLD_training[:,:,:,0],axis=-1)
+qBOLD_training = qBOLD_training/np.expand_dims(qBOLD_training[:,:,:,0],axis=-1)
 t=np.array([3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48])/1000
 for i in tqdm(range(qBOLD_training.shape[0])):
     for x in range(qBOLD_training.shape[1]):
         for y in range(qBOLD_training.shape[2]):
             #for ti in range(qBOLD_training.shape[3]):
             qBOLD_training[i,x,y,:]=qBOLD_training[i,x,y,:]/(S0_train[i,x,y]*np.exp(-R2_train[i,x,y] * t))
-qBOLD_test=Dataset_test['qBOLD']
+#qBOLD_test=Dataset_test['qBOLD']
 #qBOLD_test = qBOLD_test/np.expand_dims(qBOLD_test[:,:,:,0],axis=-1)
 for i in tqdm(range(qBOLD_test.shape[0])):
     for x in range(qBOLD_test.shape[1]):
@@ -51,6 +51,10 @@ for i in tqdm(range(qBOLD_test.shape[0])):
             qBOLD_test[i,x,y,:]=qBOLD_test[i,x,y,:]/(S0_test[i,x,y]*np.exp(-R2_test[i,x,y] * t))
 qBOLD_test[0,0,0,:]
 #np.savez("../Brain_Phantom/Patches_no_air_big/qBOLD_15GB_S0_R2_removed",qBOLD_training=qBOLD_training,qBOLD_test=qBOLD_test)
+"""
+Dataset_reduced=np.load("../Brain_Phantom/Patches_no_air_big/qBOLD_15GB_S0_R2_removed.npz")
+qBOLD_training=Dataset_reduced['qBOLD_training']
+qBOLD_test=Dataset_reduced['qBOLD_test']
 
 QSM_training=Dataset_train['QSM']
 QSM_test=Dataset_test['QSM']
@@ -174,7 +178,7 @@ my_callbacks = [
 
 #%%
 
-history_params = model_params.fit([qBOLD_training,QSM_training], nu_train , batch_size=100, epochs=100, validation_split=0.1/0.9, callbacks=my_callbacks)
+history_params = model_params.fit([qBOLD_training,QSM_training], nu_train , batch_size=2000, epochs=100, validation_split=0.1/0.9, callbacks=my_callbacks)
 #history_params = model_params.fit(training_Params_data, epochs=100,validation_data=val_Params_data, callbacks=my_callbacks)
 #%%
 model_params.save("models/"+version+ "Model_2D_fully_conv_Params_S0_R2_removed.h5")
