@@ -9,6 +9,7 @@ from numpy.random import rand, randn
 import matplotlib.pyplot as plt
 from tqdm import tqdm  #for progress bar
 
+import QSM_qBOLD_2D_plotting_functions as QQplt
 import h5py
 #from QSM_qBOLD_2D_load_and_prepare_data import load_and_prepare_data
 print(tf.__version__)
@@ -208,7 +209,7 @@ plot_loss(history_params,'chi_nb_')
 model_params.save("models/"+version+ "Model_2D_Params_before_qqbold_2021-10-31.h5")
 
 # %%
-#model_params = keras.models.load_model("models/"+version+ "Model_2D_Params_before_qqbold.h5")
+model_params = keras.models.load_model("models/"+version+ "Model_2D_Params_before_qqbold_2021-10-31.h5")
 #model_params.summary()
 p = model_params.predict([qBOLD_test,QSM_test])
 p[0].shape
@@ -418,13 +419,13 @@ def check_Params_transformed_hist(Params_test,p):
 
 #%%
 Number=4
-label_transformed=translate_Params(test_list)
-label_transformed[0][1,:,:]
-prediction_transformed=translate_Params(p)
-check_Params_transformed(label_transformed,prediction_transformed,Number)
+label_transformed=QQplt.translate_Params(test_list)
+#label_transformed[0][1,:,:]
+prediction_transformed=QQplt.translate_Params(p)
+QQplt.check_Params_transformed_3D(label_transformed,prediction_transformed,Number)
 
 
-check_Params_transformed_hist(label_transformed,prediction_transformed)
+QQplt.check_Params_transformed_hist(label_transformed,prediction_transformed)
 #%%
 Number=2
 QSM_test.shape
