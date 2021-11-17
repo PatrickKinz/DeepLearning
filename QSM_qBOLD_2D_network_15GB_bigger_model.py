@@ -57,7 +57,7 @@ input_qBOLD = keras.Input(shape=(30,30,16), name = 'Input_qBOLD')
 input_qBOLD.shape
 input_qBOLD.dtype
 
-n=16
+n=8
 
 conv_qBOLD_1 = keras.layers.Conv2D(n,
                   kernel_size = 3,
@@ -67,11 +67,18 @@ conv_qBOLD_1 = keras.layers.Conv2D(n,
                   activation='tanh',
                   name='conv_qBOLD_1')(input_qBOLD)
 
+conv_qBOLD_2 = keras.layers.Conv2D(2*n,
+                  kernel_size = 3,
+                  strides=1,
+                  padding='same',
+                  dilation_rate=1,
+                  activation='tanh',
+                  name='conv_qBOLD_2')(conv_qBOLD_1)
 
 
 
 
-model_qBOLD = keras.Model(inputs=input_qBOLD, outputs = conv_qBOLD_1, name="qBOLD model")
+model_qBOLD = keras.Model(inputs=input_qBOLD, outputs = conv_qBOLD_2, name="qBOLD model")
 model_qBOLD.summary()
 keras.utils.plot_model(model_qBOLD, show_shapes=True)
 # %%
@@ -94,13 +101,14 @@ concat_QQ_1 = layers.Concatenate(name = 'concat_QQ_1')([model_qBOLD.output,model
 conv_QQ_1 = layers.Conv2D(2*n,3,padding='same',activation="tanh",name = 'conv_QQ_1')(concat_QQ_1)
 #conv_QQ_1 = layers.Conv2D(2*n,3,padding='same',activation="tanh",name = 'conv_QQ_1')(model_qBOLD.output)
 
+conv_QQ_2 = layers.Conv2D(4*n,3,padding='same',activation="tanh",name = 'conv_QQ_2')(conv_QQ_1)
 
 
-conv_S0 = layers.Conv2D(1,3,padding='same',activation="linear", name = 'S0')(    conv_QQ_1)
-conv_R2 = layers.Conv2D(1,3,padding='same',activation="linear", name = 'R2')(    conv_QQ_1)
-conv_Y = layers.Conv2D(1,3,padding='same',activation="linear", name = 'Y')(     conv_QQ_1)
-conv_nu = layers.Conv2D(1,3,padding='same',activation="linear", name = 'nu')(    conv_QQ_1)
-conv_chinb = layers.Conv2D(1,3,padding='same',activation="linear", name = 'chi_nb')(conv_QQ_1)
+conv_S0 = layers.Conv2D(1,3,padding='same',activation="linear", name = 'S0')(    conv_QQ_2)
+conv_R2 = layers.Conv2D(1,3,padding='same',activation="linear", name = 'R2')(    conv_QQ_2)
+conv_Y = layers.Conv2D(1,3,padding='same',activation="linear", name = 'Y')(     conv_QQ_2)
+conv_nu = layers.Conv2D(1,3,padding='same',activation="linear", name = 'nu')(    conv_QQ_2)
+conv_chinb = layers.Conv2D(1,3,padding='same',activation="linear", name = 'chi_nb')(conv_QQ_2)
 
 
 model_params = keras.Model(inputs=[input_qBOLD,input_QSM],outputs=[conv_S0,conv_R2,conv_Y,conv_nu,conv_chinb],name="Params_model")
@@ -151,9 +159,8 @@ my_callbacks = [
 history_params = model_params.fit([qBOLD_training,QSM_training], training_list , batch_size=100, epochs=100, validation_split=0.1/0.9, callbacks=my_callbacks)
 #history_params = model_params.fit(training_Params_data, epochs=100,validation_data=val_Params_data, callbacks=my_callbacks)
 #%%
-version
-model_params.save("models/"+version+ "Model_2D_fully_conv_Params_before_qqbold_simple_tanh_linear.h5")
-np.save('models/'+version+'history_params_2D_fully_conv_Params_before_qqbold_simple_tanh_linear.npy',history_params.history)
+model_params.save("models/"+version+ "Model_2D_fully_conv_Params_before_qqbold_bigger_tanh_linear.h5")
+np.save('models/'+version+'history_params_2D_fully_conv_Params_before_qqbold_bigger_tanh_linear.npy',history_params.history)
 #model_params = keras.models.load_model("models/"+version+ "Model_2D_fully_conv_Params_before_qqbold_simple_tanh_linear.h5")
 #model_params.summary()
 #keras.utils.plot_model(model_params, show_shapes=True)
@@ -184,15 +191,31 @@ p[0].shape
 Number=2
 label_transformed=QQplt.translate_Params(test_list)
 prediction_transformed=QQplt.translate_Params(p)
-QQplt.check_Params_transformed(label_transformed,prediction_transformed,Number,'CNN_Uniform_GESFIDE_16Echoes_0noise_Params')
+QQplt.check_Params_transformed(label_transformed,prediction_transformed,Number,'CNN_Uniform_GESFIDE_16Echoes_0noise_bigger_Params')
 
-QQplt.check_Params_transformed_hist(label_transformed,prediction_transformed,'CNN_Uniform_GESFIDE_16Echoes_0noise_evaluation')
+QQplt.check_Params_transformed_hist(label_transformed,prediction_transformed,'CNN_Uniform_GESFIDE_16Echoes_0noise_bigger_evaluation')
 
+#%%
+
+nu_calc = QQfunc.f_nu(prediction_transformed[2],prediction_transformed[4],QSM_test)
+
+fig, axes = plt.subplots(nrows=1, ncols=1,figsize=(5,5))
+counts, xedges, yedges, im = axes.hist2d(x=label_transformed[3][:,:,:].ravel()*100,y=np.squeeze(nu_calc[:,:,:,:]).ravel()*100,bins=30,range=((0,10),(-5,15)),cmap='inferno')
+axes.title.set_text('$v$ [%]')
+axes.set_xlabel('truth')
+axes.set_ylabel('calculation')
+cbar=fig.colorbar(im,ax=axes)
+cbar.formatter.set_powerlimits((0, 0))
+axes.plot(np.linspace(0,10,10),np.linspace(0,10,10))
+plt.show()
 #%%
 Number=2
 QSM_test.shape
 plt.figure()
 plt.imshow(QSM_test[Number,:,:,0], cmap='gray')
+
+
+
 
 # %%
 """ Second training step """

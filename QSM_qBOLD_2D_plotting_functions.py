@@ -2,6 +2,8 @@ import tensorflow as tf
 from tensorflow import keras
 import numpy as np
 import matplotlib.pyplot as plt
+import QSM_and_qBOLD_functions as QQfunc
+
 
 #%%
 def plot_loss(history, keyword):
@@ -111,57 +113,59 @@ def translate_Params(Params):
 def check_Params_transformed(Params_test,p,Number,filename):
     fig, axes = plt.subplots(nrows=2, ncols=5,figsize=(15,5))
     ax = axes.ravel()
-    P0 = ax[0].imshow(Params_test[0][Number,:,:], cmap='gray')
+    P0 = ax[0].imshow(Params_test[0][Number,:,:], cmap='inferno')
     P0.set_clim(.0,1)
     ax[0].title.set_text('$S_0$ [a.u.]')
     ax[0].get_xaxis().set_visible(False)
     ax[0].get_yaxis().set_visible(False)
+    ax[0].set_ylabel('truth')
     plt.colorbar(P0,ax=ax[0])
-    P1 = ax[1].imshow(Params_test[1][Number,:,:], cmap='gray')
+    P1 = ax[1].imshow(Params_test[1][Number,:,:], cmap='inferno')
     P1.set_clim(0,30)
     ax[1].title.set_text('$R_2$ [Hz]')
     ax[1].get_xaxis().set_visible(False)
     ax[1].get_yaxis().set_visible(False)
     plt.colorbar(P1,ax=ax[1])
-    P2 = ax[2].imshow(Params_test[2][Number,:,:]*100, cmap='gray')
+    P2 = ax[2].imshow(Params_test[2][Number,:,:]*100, cmap='inferno')
     P2.set_clim(.0,1*100)
     ax[2].title.set_text('Y [%]')
     ax[2].get_xaxis().set_visible(False)
     ax[2].get_yaxis().set_visible(False)
     plt.colorbar(P2,ax=ax[2])
-    P3 = ax[3].imshow(Params_test[3][Number,:,:]*100, cmap='gray')
+    P3 = ax[3].imshow(Params_test[3][Number,:,:]*100, cmap='inferno')
     P3.set_clim(0,0.1*100)
     ax[3].title.set_text('$v$ [%]')
     ax[3].get_xaxis().set_visible(False)
     ax[3].get_yaxis().set_visible(False)
     plt.colorbar(P3,ax=ax[3])
-    P4 = ax[4].imshow(Params_test[4][Number,:,:]*1000, cmap='gray')
+    P4 = ax[4].imshow(Params_test[4][Number,:,:]*1000, cmap='inferno')
     P4.set_clim(-.1*1000,.1*1000)
     ax[4].title.set_text('$\chi_{nb}$ [ppb]')
     ax[4].get_xaxis().set_visible(False)
     ax[4].get_yaxis().set_visible(False)
     plt.colorbar(P4,ax=ax[4])
-    P5 = ax[5].imshow(np.squeeze(p[0][Number,:,:,:]), cmap='gray')
+    P5 = ax[5].imshow(np.squeeze(p[0][Number,:,:,:]), cmap='inferno')
     P5.set_clim(.0,1)
     ax[5].get_xaxis().set_visible(False)
     ax[5].get_yaxis().set_visible(False)
+    ax[5].set_ylabel('prediction')
     plt.colorbar(P5,ax=ax[5])
-    P6 = ax[6].imshow(np.squeeze(p[1][Number,:,:,:]), cmap='gray')
+    P6 = ax[6].imshow(np.squeeze(p[1][Number,:,:,:]), cmap='inferno')
     P6.set_clim(0,30)
     ax[6].get_xaxis().set_visible(False)
     ax[6].get_yaxis().set_visible(False)
     plt.colorbar(P6,ax=ax[6])
-    P7 = ax[7].imshow(np.squeeze(p[2][Number,:,:,:])*100, cmap='gray')
+    P7 = ax[7].imshow(np.squeeze(p[2][Number,:,:,:])*100, cmap='inferno')
     P7.set_clim(.0,1*100)
     ax[7].get_xaxis().set_visible(False)
     ax[7].get_yaxis().set_visible(False)
     plt.colorbar(P7,ax=ax[7])
-    P8 = ax[8].imshow(np.squeeze(p[3][Number,:,:,:])*100, cmap='gray')
+    P8 = ax[8].imshow(np.squeeze(p[3][Number,:,:,:])*100, cmap='inferno')
     P8.set_clim(.0,0.1*100)
     ax[8].get_xaxis().set_visible(False)
     ax[8].get_yaxis().set_visible(False)
     plt.colorbar(P8,ax=ax[8])
-    P9 = ax[9].imshow(np.squeeze(p[4][Number,:,:,:])*1000, cmap='gray')
+    P9 = ax[9].imshow(np.squeeze(p[4][Number,:,:,:])*1000, cmap='inferno')
     P9.set_clim(-.1*1000,.1*1000)
     ax[9].get_xaxis().set_visible(False)
     ax[9].get_yaxis().set_visible(False)
@@ -333,7 +337,7 @@ def check_Params_transformed_hist(Params_test,p,filename):
     ax[1].set_ylabel('prediction')
     cbar=fig.colorbar(im,ax=ax[1])
     cbar.formatter.set_powerlimits((0, 0))
-    counts, xedges, yedges, im = ax[2].hist2d(x=Params_test[2][:,:,:].ravel()*100,y=np.squeeze(p[2][:,:,:,:]).ravel()*100,bins=30,range=((0,98),(0,98)),cmap='inferno')
+    counts_Y, xedges_Y, yedges, im = ax[2].hist2d(x=Params_test[2][:,:,:].ravel()*100,y=np.squeeze(p[2][:,:,:,:]).ravel()*100,bins=30,range=((0,98),(0,98)),cmap='inferno')
     ax[2].title.set_text('Y [%]')
     ax[2].set_xlabel('truth')
     ax[2].set_ylabel('prediction')
@@ -355,6 +359,23 @@ def check_Params_transformed_hist(Params_test,p,filename):
     plt.tight_layout()
     plt.show()
     fig.savefig('plots/'+filename+'.png')
+
+    # collapse histogram along y axis. plot mean and std for each bin along xaxis. doesnt work like this :(
+    #fig=plt.figure()
+    #plt.errorbar(x=xedges_Y[1:]-(xedges_Y[1]-xedges_Y[0])/2,y=np.mean(counts_Y,axis=0),yerr=np.std(counts_Y,axis=0))
+    #plt.show()
+def check_nu_calc(Params_test,p,QSM_test):
+    nu_calc = QQfunc.f_nu(p[2],p[4],QSM_test)
+
+    fig, axes = plt.subplots(nrows=1, ncols=1,figsize=(5,5))
+    counts, xedges, yedges, im = axes.hist2d(x=Params_test[3][:,:,:].ravel()*100,y=np.squeeze(nu_calc[:,:,:,:]).ravel()*100,bins=30,range=((0,10),(-5,15)),cmap='inferno')
+    axes.title.set_text('$v$ [%]')
+    axes.set_xlabel('truth')
+    axes.set_ylabel('calculation')
+    cbar=fig.colorbar(im,ax=axes)
+    cbar.formatter.set_powerlimits((0, 0))
+    axes.plot(np.linspace(0,10,10),np.linspace(0,10,10))
+    plt.show()
 
 def check_Params_transformed_hist_3D(Params_test,p):
     fig, axes = plt.subplots(nrows=2, ncols=5,figsize=(15,5))
@@ -455,7 +476,6 @@ def check_qBOLD(t,p,Number): #target prediction
     plt.show()
     fig.savefig('plots/CNN_Uniform_GESFIDE_16Echoes_direkt_Full_check_qBOLD.png')
 
-
 def check_Pixel(target,prediction,QSM_t,QSM_p,Number):
     t=np.array([3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48])/1000
     fig=plt.figure()
@@ -513,3 +533,7 @@ def check_Pixel(target,prediction,QSM_t,QSM_p,Number):
     ax[1].set_ylim(-0.15,0.15)
     plt.show()
     fig.savefig('plots/CNN_Uniform_GESFIDE_16Echoes_direkt_Full_check_Pixel_5.png')
+
+
+def check_Params_transformed_hist_mean(Params_test,p,filename):
+    """calculate mean and std for each bin of true values"""
