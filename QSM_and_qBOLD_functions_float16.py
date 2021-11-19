@@ -87,13 +87,13 @@ def f_hyper_tensor(x):
     taylor = - (81*x^8)/10890880 + (27*x^6)/80080 - (3*x^4)/280 + (3*x^2)/10
     Intersection at approx x = 3.72395
     '''
-    Intersection = tf.constant(3.72395,dtype=tf.float32)
+    Intersection = tf.constant(3.72395,dtype=tf.float16)
     a = -81./10890880*tf.math.pow(x,8) +27./80080*tf.math.pow(x,6) -3./280*tf.math.pow(x,4) +3./10*tf.math.pow(x,2)
     b = x-1
     return tf.where(tf.math.greater(Intersection,x),a, b)
 
 def test_f_hyper_tensor():
-    t=tf.constant([0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,40,50,60,70], dtype=tf.float32)/10
+    t=tf.constant([0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,40,50,60,70], dtype=tf.float16)/10
     out = f_hyper_tensor(t)
     plt.plot(t.numpy(),out.numpy(),'o-')
 
@@ -135,13 +135,13 @@ def f_qBOLD_tensor(tensor):
     n_elements=a.shape[0]
 
     TE=40./1000
-    t_FID=tf.constant([3,6,9,12,15,18], dtype=tf.float32)/1000
+    t_FID=tf.constant([3,6,9,12,15,18], dtype=tf.float16)/1000
     t_FID=tf.expand_dims(t_FID,0)
     output_FID = S0 * tf.math.exp(-R2*t_FID - nu*f_hyper_tensor(dw*t_FID))
-    t_Echo_rise=tf.constant([21,24,27,30,33,36,39], dtype=tf.float32)/1000
+    t_Echo_rise=tf.constant([21,24,27,30,33,36,39], dtype=tf.float16)/1000
     t_Echo_rise=tf.expand_dims(t_Echo_rise,0)
     output_Echo_rise = S0 * tf.math.exp(-R2*t_Echo_rise - nu*f_hyper_tensor(dw*(TE-t_Echo_rise)))
-    t_Echo_fall=tf.constant([42,45,48], dtype=tf.float32)/1000
+    t_Echo_fall=tf.constant([42,45,48], dtype=tf.float16)/1000
     t_Echo_fall=tf.expand_dims(t_Echo_fall,0)
     output_Echo_fall = S0 * tf.math.exp(-R2*t_Echo_fall - nu*f_hyper_tensor(dw*(t_Echo_fall-TE)))
     return tf.concat([output_FID,output_Echo_rise,output_Echo_fall],axis=-1)
@@ -196,8 +196,8 @@ def f_nu_tensor(c,e,QSM):
 
 def grid_search_wrapper(input_tensor):
     #map function over n_batch
-    output=tf.map_fn(grid_search_nu_Y_tensor,input_tensor,fn_output_signature=tf.float32,parallel_iterations=10)
-    output=tf.ensure_shape(output,[None,900,20,20,5+16+1])
+    output=tf.map_fn(grid_search_nu_Y_tensor,input_tensor,fn_output_signature=tf.float16,parallel_iterations=50)
+    #output=tf.ensure_shape(output,[None,900,20,40,5+16+1])
     return output
 
 def grid_search_nu_Y_tensor(input_tensor):
@@ -216,19 +216,25 @@ def grid_search_nu_Y_tensor(input_tensor):
     #tf.expand_dims(a,-1)                             #shape (n_voxel,1)
     #tf.repeat(tf.expand_dims(a,-1),n_grid,axis-1)    #shape (n_voxel,n_grid)
     #tf.expand_dims(tf.repeat(tf.expand_dims(a,-1),n_grid,axis-1),-1)    #shape (n_voxel,n_grid,1)
-    a_plane = tf.expand_dims(tf.expand_dims(a,-1),-1)*tf.ones([a.shape[0],n_grid_c,n_grid_d])  #shape (n_voxel,n_grid,n_grid)
-    b_plane = tf.expand_dims(tf.expand_dims(b,-1),-1)*tf.ones([b.shape[0],n_grid_c,n_grid_d])
+    a_plane = tf.expand_dims(tf.expand_dims(a,-1),-1)*tf.ones([a.shape[0],n_grid_c,n_grid_d],dtype=tf.float16)  #shape (n_voxel,n_grid,n_grid)
+    a_plane = tf.ensure_shape(a_plane,[n_voxel,n_grid_c,n_grid_d])
+    b_plane = tf.expand_dims(tf.expand_dims(b,-1),-1)*tf.ones([b.shape[0],n_grid_c,n_grid_d],dtype=tf.float16)
 
-    c_start = tf.clip_by_value( tf.expand_dims(c - 0.3,-1)*tf.ones([1,n_grid_d]),0.01,1-0.3 )                      # shape (n_voxel,n_grid)
-    c_stop  = tf.clip_by_value( tf.expand_dims(c + 0.3,-1)*tf.ones([1,n_grid_d]),0+0.3,1 )                       # shape (n_voxel,n_grid)
+    c_start = tf.math.maximum(0.01*tf.ones([c.shape[0],n_grid_d],dtype=tf.float16), tf.expand_dims(c - 0.3,-1)*tf.ones([c.shape[0],n_grid_d],dtype=tf.float16) )                      # shape (n_voxel,n_grid)
+    c_start =tf.ensure_shape(c_start,[n_voxel,n_grid_d])
+    c_stop  =  tf.math.minimum(tf.ones([c.shape[0],n_grid_d],dtype=tf.float16), tf.expand_dims(c + 0.3,-1)*tf.ones([c.shape[0],n_grid_d],dtype=tf.float16) )                       # shape (n_voxel,n_grid)
     c_plane = tf.linspace(c_start,c_stop,n_grid_c,axis=-2)                        # shape (n_voxel,n_grid,n_grid)          Y varied along first n_grid
+    c_plane =tf.ensure_shape(c_plane,[n_voxel,n_grid_c,n_grid_d])
 
     d_calc = f_nu_tensor(c,e,QSM)
-    d_start = tf.clip_by_value( tf.expand_dims(d_calc - 0.3,-1)*tf.ones([1,n_grid_d]),0.01,1-0.3 )                      # shape (n_voxel,n_grid)
-    d_stop  = tf.clip_by_value( tf.expand_dims(d_calc + 0.3,-1)*tf.ones([1,n_grid_d]),0+0.3,1 )                       # shape (n_voxel,n_grid)
+    #d_start = 0.01*tf.ones([d.shape[0],n_grid_c])                       # shape (n_voxel,n_grid)
+    d_start = tf.math.maximum(0.01*tf.ones([d_calc.shape[0],n_grid_c],dtype=tf.float16), tf.expand_dims(d_calc - 0.3,-1)*tf.ones([d_calc.shape[0],n_grid_c],dtype=tf.float16) )                      # shape (n_voxel,n_grid)
+    #d_stop  = tf.ones([d.shape[0],n_grid_c])                        # shape (n_voxel,n_grid)
+    d_stop = tf.math.minimum(tf.ones([d_calc.shape[0],n_grid_c],dtype=tf.float16), tf.expand_dims(d_calc + 0.3,-1)*tf.ones([d_calc.shape[0],n_grid_c],dtype=tf.float16) )                      # shape (n_voxel,n_grid)
     d_plane = tf.linspace(d_start,d_stop,n_grid_d,axis=-1)                        # shape (n_voxel,n_grid,n_grid)          nu varied along second n_grid
+    d_plane =tf.ensure_shape(c_plane,[n_voxel,n_grid_c,n_grid_d])
 
-    e_plane = tf.expand_dims(tf.expand_dims(e,-1),-1)*tf.ones([a.shape[0],n_grid_c,n_grid_d])
+    e_plane = tf.expand_dims(tf.expand_dims(e,-1),-1)*tf.ones([a.shape[0],n_grid_c,n_grid_d],dtype=tf.float16)
 
     a_plane=tf.reshape(a_plane,[n_voxel*n_grid_c*n_grid_d])
     b_plane=tf.reshape(b_plane,[n_voxel*n_grid_c*n_grid_d])
@@ -237,12 +243,12 @@ def grid_search_nu_Y_tensor(input_tensor):
     e_plane=tf.reshape(e_plane,[n_voxel*n_grid_c*n_grid_d])
 
     qBOLD_calculated = f_qBOLD_tensor([a_plane,b_plane,c_plane,d_plane,e_plane])                        # shape (n_voxel,n_grid,n_grid,n_echoes)
-    #qBOLD_calculated = tf.ensure_shape(qBOLD_calculated,[n_voxel*n_grid_c*n_grid_d,16])
+    qBOLD_calculated = tf.ensure_shape(qBOLD_calculated,[n_voxel*n_grid_c*n_grid_d,16])
     qBOLD_residuals = qBOLD_calculated - tf.repeat(qBOLD,n_grid_c*n_grid_d,axis=0)                        # shape (n_voxel,n_grid,n_grid,n_echoes)
     qBOLD_residuals =tf.reshape(qBOLD_residuals,[n_voxel,n_grid_c,n_grid_d,16])
 
     QSM_calculated = f_QSM_tensor([c_plane,d_plane,e_plane])                            # shape (n_voxel,n_grid,n_grid)
-    #QSM_calculated = tf.ensure_shape(QSM_calculated,[n_voxel*n_grid_c*n_grid_d])
+    QSM_calculated = tf.ensure_shape(QSM_calculated,[n_voxel*n_grid_c*n_grid_d])
     QSM_residuals = QSM_calculated - tf.repeat(QSM,n_grid_c*n_grid_d,axis=0)    # shape (n_voxel,n_grid,n_grid,1)
     QSM_residuals =tf.reshape(QSM_residuals,[n_voxel,n_grid_c,n_grid_d,1])
 
@@ -261,12 +267,12 @@ def grid_search_nu_Y_tensor(input_tensor):
                         qBOLD_residuals,
                         QSM_residuals],
                         axis=-1)                                                 # shape (n_batch,n_voxel,n_grid,n_grid,5+n_echoes+1)
-    #output=tf.ensure_shape(output,[n_voxel,n_grid_c,n_grid_d,5+16+1])
+    output=tf.ensure_shape(output,[n_voxel,n_grid_c,n_grid_d,5+16+1])
     return output
 
 
 def grid_search_nu_Y_tensor_no_wrapper(input_tensor):
-    #n_batch=10
+    #n_batch=50
     n_voxel=input_tensor[0].shape[1]
     a     = tf.reshape(input_tensor[0],[-1])                                                    # shape (n_voxel)
     b     = tf.reshape(input_tensor[1],[-1])                                                    # shape (n_voxel)
@@ -282,22 +288,25 @@ def grid_search_nu_Y_tensor_no_wrapper(input_tensor):
     #tf.expand_dims(a,-1)                             #shape (n_voxel,1)
     #tf.repeat(tf.expand_dims(a,-1),n_grid,axis-1)    #shape (n_voxel,n_grid)
     #tf.expand_dims(tf.repeat(tf.expand_dims(a,-1),n_grid,axis-1),-1)    #shape (n_voxel,n_grid,1)
-    a_plane = tf.expand_dims(tf.expand_dims(a,-1),-1)*tf.ones([1,n_grid_c,n_grid_d])  #shape (n_voxel,n_grid,n_grid)
+    a_plane = tf.expand_dims(tf.expand_dims(a,-1),-1)*tf.ones([1,n_grid_c,n_grid_d],dtype=tf.float16)  #shape (n_voxel,n_grid,n_grid)
     #a_plane = tf.ensure_shape(a_plane,[n_batch*n_voxel,n_grid_c,n_grid_d])
-    b_plane = tf.expand_dims(tf.expand_dims(b,-1),-1)*tf.ones([1,n_grid_c,n_grid_d])
+    b_plane = tf.expand_dims(tf.expand_dims(b,-1),-1)*tf.ones([1,n_grid_c,n_grid_d],dtype=tf.float16)
 
-    c_start = tf.clip_by_value( tf.expand_dims(c - 0.3,-1)*tf.ones([1,n_grid_d]),0.01,1-0.3 )                      # shape (n_voxel,n_grid)
-    c_stop  = tf.clip_by_value( tf.expand_dims(c + 0.3,-1)*tf.ones([1,n_grid_d]),0+0.3,1 )                       # shape (n_voxel,n_grid)
+    c_start = tf.math.minimum(0.01*tf.ones([1,n_grid_d],dtype=tf.float16), tf.expand_dims(c - 0.3,-1)*tf.ones([1,n_grid_d],dtype=tf.float16) )                      # shape (n_voxel,n_grid)
+    #c_start =tf.ensure_shape(c_start,[n_batch*n_voxel,n_grid_d])
+    c_stop  =  tf.math.maximum(tf.ones([1,n_grid_d],dtype=tf.float16), tf.expand_dims(c + 0.3,-1)*tf.ones([1,n_grid_d],dtype=tf.float16) )                       # shape (n_voxel,n_grid)
     c_plane = tf.linspace(c_start,c_stop,n_grid_c,axis=-2)                        # shape (n_voxel,n_grid,n_grid)          Y varied along first n_grid
     #c_plane =tf.ensure_shape(c_plane,[n_batch*n_voxel,n_grid_c,n_grid_d])
 
     d_calc = f_nu_tensor(c,e,QSM)
-    d_start = tf.clip_by_value( tf.expand_dims(d_calc - 0.3,-1)*tf.ones([1,n_grid_d]),0.01,1-0.3 )                      # shape (n_voxel,n_grid)
-    d_stop  = tf.clip_by_value( tf.expand_dims(d_calc + 0.3,-1)*tf.ones([1,n_grid_d]),0+0.3,1 )                       # shape (n_voxel,n_grid)
+    #d_start = 0.01*tf.ones([d.shape[0],n_grid_c])                       # shape (n_voxel,n_grid)
+    d_start = tf.math.maximum(0.01*tf.ones([1,n_grid_c],dtype=tf.float16), tf.expand_dims(d_calc - 0.3,-1)*tf.ones([1,n_grid_c],dtype=tf.float16) )                      # shape (n_voxel,n_grid)
+    #d_stop  = tf.ones([d.shape[0],n_grid_c])                        # shape (n_voxel,n_grid)
+    d_stop = tf.math.minimum(tf.ones([1,n_grid_c],dtype=tf.float16), tf.expand_dims(d_calc + 0.3,-1)*tf.ones([1,n_grid_c],dtype=tf.float16) )                      # shape (n_voxel,n_grid)
     d_plane = tf.linspace(d_start,d_stop,n_grid_d,axis=-1)                        # shape (n_voxel,n_grid,n_grid)          nu varied along second n_grid
     #d_plane =tf.ensure_shape(c_plane,[n_batch*n_voxel,n_grid_c,n_grid_d])
 
-    e_plane = tf.expand_dims(tf.expand_dims(e,-1),-1)*tf.ones([1,n_grid_c,n_grid_d])
+    e_plane = tf.expand_dims(tf.expand_dims(e,-1),-1)*tf.ones([1,n_grid_c,n_grid_d],dtype=tf.float16)
 
     a_plane=tf.reshape(a_plane,[-1])
     b_plane=tf.reshape(b_plane,[-1])

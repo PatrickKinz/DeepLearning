@@ -16,8 +16,8 @@ import h5py
 #from QSM_qBOLD_2D_load_and_prepare_data import load_and_prepare_data
 
 
-#policy = tf.keras.mixed_precision.experimental.Policy('mixed_float16')
-#tf.keras.mixed_precision.experimental.set_policy(policy)
+#policy = tf.keras.mixed_precision.Policy('mixed_float16')
+#tf.keras.mixed_precision.set_global_policy(policy)
 #accelerates training, expecially with tensor cores on RTX cards
 
 #from My_Custom_Generator import My_Params_Generator,My_Signal_Generator
@@ -267,13 +267,13 @@ flat_chinb = layers.Flatten(name = 'flat_chinb')(output_Params[4])
 flat_qBOLD = layers.Reshape((-1,16),name = 'flat_qBOLD')(model_params.input[0])
 flat_QSM = layers.Flatten(name = 'flat_QSM')(model_params.input[1])
 
-#flat_S0=layers.Activation('linear', dtype='float16')(flat_S0)
-#flat_R2=layers.Activation('linear', dtype='float16')(flat_R2)
-#flat_Y=layers.Activation('linear', dtype='float16')(flat_Y)
-#flat_nu=layers.Activation('linear', dtype='float16')(flat_nu)
-#flat_chinb=layers.Activation('linear', dtype='float16')(flat_chinb)
-#flat_qBOLD=layers.Activation('linear', dtype='float16')(flat_qBOLD)
-#flat_QSM=layers.Activation('linear', dtype='float16')(flat_QSM)
+#flat_S0=layers.Activation('linear', dtype='float32')(flat_S0)
+#flat_R2=layers.Activation('linear', dtype='float32')(flat_R2)
+#flat_Y=layers.Activation('linear', dtype='float32')(flat_Y)
+#flat_nu=layers.Activation('linear', dtype='float32')(flat_nu)
+#flat_chinb=layers.Activation('linear', dtype='float32')(flat_chinb)
+#flat_qBOLD=layers.Activation('linear', dtype='float32')(flat_qBOLD)
+#flat_QSM=layers.Activation('linear', dtype='float32')(flat_QSM)
 
 
 grid_search_layer = layers.Lambda(QQfunc.grid_search_wrapper, name = 'grid_search')([flat_S0,flat_R2,flat_Y,flat_nu,flat_chinb,flat_qBOLD,flat_QSM])
@@ -286,19 +286,19 @@ conv_grid_search_1 = layers.Conv3D(filters = 8,
 
 
 conv_grid_search_2 = layers.Conv3D(filters = 16,
-                                   kernel_size=(1,4,3),
-                                   strides=(1,1,2),
+                                   kernel_size=(1,3,3),
+                                   strides=(1,2,2),
                                    activation="tanh",
                                    name="conv_grid_2")(conv_grid_search_1)
 
-reshape_conv_grid_search_2 = layers.Reshape((-1,4,16),name='reshape_conv_grid_2')(conv_grid_search_2)
+#reshape_conv_grid_search_2 = layers.Reshape((-1,4,16),name='reshape_conv_grid_2')(conv_grid_search_2)
 
 
-conv_grid_search_3 = layers.Conv2D(filters = 32,
-                                   kernel_size=(1,4),
-                                   strides=(1,1),
+conv_grid_search_3 = layers.Conv3D(filters = 32,
+                                   kernel_size=(1,4,4),
+                                   strides=(1,1,1),
                                    activation="tanh",
-                                   name="conv_grid_3")(reshape_conv_grid_search_2)
+                                   name="conv_grid_3")(conv_grid_search_2)
 
 reshape_grid_search = layers.Reshape((30,30,32),name='collapse_parameter_space')(conv_grid_search_3)
 
@@ -311,7 +311,7 @@ conv_chinb_grid = layers.Conv2D(1,3,padding='same',activation="linear", name = '
 
 
 model_grid_search = keras.Model(inputs=[model_params.input[0],model_params.input[1]],outputs=[conv_S0_grid,conv_R2_grid,conv_Y_grid,conv_nu_grid,conv_chinb_grid],name="grid_search_model")
-#model_grid_search = keras.Model(inputs=[model_params.input[0],model_params.input[1]],outputs=conv3D_grid_search_3,name="grid_search_model")
+#model_grid_search = keras.Model(inputs=[model_params.input[0],model_params.input[1]],outputs=conv_grid_search_2,name="grid_search_model")
 model_grid_search.summary()
 keras.utils.plot_model(model_grid_search, show_shapes=True)
 

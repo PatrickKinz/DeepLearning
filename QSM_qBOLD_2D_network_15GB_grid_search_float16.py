@@ -11,13 +11,13 @@ from numpy.random import rand, randn,shuffle
 import matplotlib.pyplot as plt
 from tqdm import tqdm  #for progress bar
 import QSM_qBOLD_2D_plotting_functions as QQplt
-import QSM_and_qBOLD_functions as QQfunc
+import QSM_and_qBOLD_functions_float16 as QQfunc
 import h5py
 #from QSM_qBOLD_2D_load_and_prepare_data import load_and_prepare_data
 
 
-policy = tf.keras.mixed_precision.experimental.Policy('mixed_float16')
-tf.keras.mixed_precision.experimental.set_policy(policy)
+policy = tf.keras.mixed_precision.Policy('mixed_float16')
+tf.keras.mixed_precision.set_global_policy(policy)
 #accelerates training, expecially with tensor cores on RTX cards
 
 #from My_Custom_Generator import My_Params_Generator,My_Signal_Generator
@@ -37,7 +37,6 @@ chi_nb_train=Dataset_train['chi_nb']
 qBOLD_training=Dataset_train['qBOLD']
 QSM_training=Dataset_train['QSM']
 
-
 training_list = [S0_train,R2_train,Y_train,nu_train,chi_nb_train]
 
 #%%
@@ -52,7 +51,6 @@ qBOLD_test=Dataset_test['qBOLD']
 QSM_test=Dataset_test['QSM']
 
 test_list = [S0_test,R2_test,Y_test,nu_test,chi_nb_test]
-
 
 version = "no_air_1Pnoise_15GB/"
 
@@ -102,14 +100,18 @@ conv_QQ_1 = layers.Conv2D(2*n,3,padding='same',activation="tanh",name = 'conv_QQ
 
 
 
-conv_S0 = layers.Conv2D(1,3,padding='same',activation="linear", name = 'S0')(    conv_QQ_1)
-conv_R2 = layers.Conv2D(1,3,padding='same',activation="linear", name = 'R2')(    conv_QQ_1)
-conv_Y = layers.Conv2D(1,3,padding='same',activation="linear", name = 'Y')(     conv_QQ_1)
-conv_nu = layers.Conv2D(1,3,padding='same',activation="linear", name = 'nu')(    conv_QQ_1)
-conv_chinb = layers.Conv2D(1,3,padding='same',activation="linear", name = 'chi_nb')(conv_QQ_1)
+conv_S0 = layers.Conv2D(1,3,padding='same', name = 'conv_S0')(    conv_QQ_1)
+conv_R2 = layers.Conv2D(1,3,padding='same', name = 'conv_R2')(    conv_QQ_1)
+conv_Y = layers.Conv2D(1,3,padding='same', name = 'conv_Y')(     conv_QQ_1)
+conv_nu = layers.Conv2D(1,3,padding='same', name = 'conv_nu')(    conv_QQ_1)
+conv_chinb = layers.Conv2D(1,3,padding='same', name = 'conv_chi_nb')(conv_QQ_1)
+out_S0=layers.Activation('linear', dtype='float32', name='S0')(conv_S0)
+out_R2=layers.Activation('linear', dtype='float32', name='R2')(conv_R2)
+out_Y=layers.Activation('linear', dtype='float32', name='Y')(conv_Y)
+out_nu=layers.Activation('linear', dtype='float32', name='nu')(conv_nu)
+out_chinb=layers.Activation('linear', dtype='float32', name='chi_nb')(conv_chinb)
 
-
-model_params = keras.Model(inputs=[input_qBOLD,input_QSM],outputs=[conv_S0,conv_R2,conv_Y,conv_nu,conv_chinb],name="Params_model")
+model_params = keras.Model(inputs=[input_qBOLD,input_QSM],outputs=[out_S0,out_R2,out_Y,out_nu,out_chinb],name="Params_model")
 model_params.summary()
 keras.utils.plot_model(model_params, show_shapes=True)
 
@@ -159,12 +161,12 @@ my_callbacks = [
 history_params = model_params.fit([qBOLD_training,QSM_training], training_list , batch_size=100, epochs=100, validation_split=0.1/0.9, callbacks=my_callbacks)
 #history_params = model_params.fit(training_Params_data, epochs=100,validation_data=val_Params_data, callbacks=my_callbacks)
 #%%
-#model_params.save("models/"+version+ "Model_2D_fully_conv_Params_before_qqbold_simple_tanh_linear.h5")
-#np.save('models/'+version+'history_params_2D_fully_conv_Params_before_qqbold_simple_tanh_linear.npy',history_params.history)
-model_params = keras.models.load_model("models/"+version+ "Model_2D_fully_conv_Params_before_qqbold_simple_tanh_linear.h5")
+#model_params.save("models/"+version+ "Model_2D_fully_conv_Params_before_qqbold_simple_tanh_linear_float16.h5")
+#np.save('models/'+version+'history_params_2D_fully_conv_Params_before_qqbold_simple_tanh_linear_float16.npy',history_params.history)
+model_params = keras.models.load_model("models/"+version+ "Model_2D_fully_conv_Params_before_qqbold_simple_tanh_linear_float16.h5")
 model_params.summary()
 keras.utils.plot_model(model_params, show_shapes=True)
-
+#loaded 0.3GB in memory
 #%%
 
 
@@ -176,6 +178,7 @@ print(history_params.history.keys())
 
 QQplt.plot_loss(history_params,'')
 QQplt.plot_loss(history_params,'S0_')
+QQplt.plot_loss(history_params,'R2_')
 QQplt.plot_loss(history_params,'Y_')
 QQplt.plot_loss(history_params,'nu_')
 QQplt.plot_loss(history_params,'chi_nb_')
@@ -186,14 +189,16 @@ QQplt.plot_loss(history_params,'chi_nb_')
 #model_params.summary()
 p = model_params.predict([qBOLD_test,QSM_test])
 p[0].shape
-
+p[0].dtype
 #%%
 Number=2
 label_transformed=QQplt.translate_Params(test_list)
 prediction_transformed=QQplt.translate_Params(p)
-QQplt.check_Params_transformed(label_transformed,prediction_transformed,Number,'CNN_Uniform_GESFIDE_16Echoes_Params')
+label_transformed[0].dtype
+prediction_transformed[0].dtype
+QQplt.check_Params_transformed(label_transformed,prediction_transformed,Number,'CNN_Uniform_GESFIDE_16Echoes_Params_float16')
 
-QQplt.check_Params_transformed_hist(label_transformed,prediction_transformed,'CNN_Uniform_GESFIDE_16Echoes_evaluation')
+QQplt.check_Params_transformed_hist(label_transformed,prediction_transformed,'CNN_Uniform_GESFIDE_16Echoes_Params_float16_evaluation')
 
 
 QQplt.check_nu_calc(label_transformed,prediction_transformed,QSM_test)
@@ -267,51 +272,57 @@ flat_chinb = layers.Flatten(name = 'flat_chinb')(output_Params[4])
 flat_qBOLD = layers.Reshape((-1,16),name = 'flat_qBOLD')(model_params.input[0])
 flat_QSM = layers.Flatten(name = 'flat_QSM')(model_params.input[1])
 
-flat_S0=layers.Activation('linear', dtype='float16')(flat_S0)
-flat_R2=layers.Activation('linear', dtype='float16')(flat_R2)
-flat_Y=layers.Activation('linear', dtype='float16')(flat_Y)
-flat_nu=layers.Activation('linear', dtype='float16')(flat_nu)
-flat_chinb=layers.Activation('linear', dtype='float16')(flat_chinb)
-flat_qBOLD=layers.Activation('linear', dtype='float16')(flat_qBOLD)
-flat_QSM=layers.Activation('linear', dtype='float16')(flat_QSM)
+#flat_S0=layers.Activation('linear', dtype='float16')(flat_S0)
+#flat_R2=layers.Activation('linear', dtype='float16')(flat_R2)
+#flat_Y=layers.Activation('linear', dtype='float16')(flat_Y)
+#flat_nu=layers.Activation('linear', dtype='float16')(flat_nu)
+#flat_chinb=layers.Activation('linear', dtype='float16')(flat_chinb)
+#flat_qBOLD=layers.Activation('linear', dtype='float16')(flat_qBOLD)
+#flat_QSM=layers.Activation('linear', dtype='float16')(flat_QSM)
 
 
-grid_search_layer = layers.Lambda(QQfunc.grid_search_wrapper, name = 'grid_search')([flat_S0,flat_R2,flat_Y,flat_nu,flat_chinb,flat_qBOLD,flat_QSM])
+grid_search_layer = layers.Lambda(QQfunc.grid_search_nu_Y_tensor_no_wrapper, name = 'grid_search')([flat_S0,flat_R2,flat_Y,flat_nu,flat_chinb,flat_qBOLD,flat_QSM])
 
-conv_grid_search_1 = layers.Conv3D(filters = 8,
-                                   kernel_size=(1,3,3),
-                                   strides=(1,2,2),
+conv_grid_search_1 = layers.Conv2D(filters = 8,
+                                   kernel_size=(3,3),
+                                   strides=(2,2),
                                    activation="tanh",
                                    name="conv_grid_1")(grid_search_layer)
 
 
-conv_grid_search_2 = layers.Conv3D(filters = 16,
-                                   kernel_size=(1,4,3),
-                                   strides=(1,1,2),
+conv_grid_search_2 = layers.Conv2D(filters = 16,
+                                   kernel_size=(3,3),
+                                   strides=(2,2),
                                    activation="tanh",
                                    name="conv_grid_2")(conv_grid_search_1)
 
-reshape_conv_grid_search_2 = layers.Reshape((-1,4,16),name='reshape_conv_grid_2')(conv_grid_search_2)
+#reshape_conv_grid_search_2 = layers.Reshape((-1,4,16),name='reshape_conv_grid_2')(conv_grid_search_2)
 
 
 conv_grid_search_3 = layers.Conv2D(filters = 32,
-                                   kernel_size=(1,4),
+                                   kernel_size=(4,4),
                                    strides=(1,1),
                                    activation="tanh",
-                                   name="conv_grid_3")(reshape_conv_grid_search_2)
+                                   name="conv_grid_3")(conv_grid_search_2)
 
 reshape_grid_search = layers.Reshape((30,30,32),name='collapse_parameter_space')(conv_grid_search_3)
 
-conv_S0_grid = layers.Conv2D(1,3,padding='same',activation="linear", name = 'S0_grid')(    reshape_grid_search)
-conv_R2_grid = layers.Conv2D(1,3,padding='same',activation="linear", name = 'R2_grid')(    reshape_grid_search)
-conv_Y_grid = layers.Conv2D(1,3,padding='same',activation="linear", name = 'Y_grid')(     reshape_grid_search)
-conv_nu_grid = layers.Conv2D(1,3,padding='same',activation="linear", name = 'nu_grid')(    reshape_grid_search)
-conv_chinb_grid = layers.Conv2D(1,3,padding='same',activation="linear", name = 'chi_nb_grid')(reshape_grid_search)
+conv_S0_grid = layers.Conv2D(1,3,padding='same', name = 'conv_S0_grid')(    reshape_grid_search)
+conv_R2_grid = layers.Conv2D(1,3,padding='same', name = 'conv_R2_grid')(    reshape_grid_search)
+conv_Y_grid = layers.Conv2D(1,3,padding='same', name = 'conv_Y_grid')(     reshape_grid_search)
+conv_nu_grid = layers.Conv2D(1,3,padding='same', name = 'conv_nu_grid')(    reshape_grid_search)
+conv_chinb_grid = layers.Conv2D(1,3,padding='same', name = 'conv_chi_nb_grid')(reshape_grid_search)
+
+out_S0_grid=layers.Activation('linear', dtype='float32', name='S0_grid')(conv_S0_grid)
+out_R2_grid=layers.Activation('linear', dtype='float32', name='R2_grid')(conv_R2_grid)
+out_Y_grid=layers.Activation('linear', dtype='float32', name='Y_grid')(conv_Y_grid)
+out_nu_grid=layers.Activation('linear', dtype='float32', name='nu_grid')(conv_nu_grid)
+out_chinb_grid=layers.Activation('linear', dtype='float32', name='chi_nb_grid')(conv_chinb_grid)
 
 
 
-model_grid_search = keras.Model(inputs=[model_params.input[0],model_params.input[1]],outputs=[conv_S0_grid,conv_R2_grid,conv_Y_grid,conv_nu_grid,conv_chinb_grid],name="grid_search_model")
-#model_grid_search = keras.Model(inputs=[model_params.input[0],model_params.input[1]],outputs=conv3D_grid_search_3,name="grid_search_model")
+model_grid_search = keras.Model(inputs=[model_params.input[0],model_params.input[1]],outputs=[out_S0_grid,out_R2_grid,out_Y_grid,out_nu_grid,out_chinb_grid],name="grid_search_model")
+#model_grid_search = keras.Model(inputs=[model_params.input[0],model_params.input[1]],outputs=conv_grid_search_2,name="grid_search_model")
 model_grid_search.summary()
 keras.utils.plot_model(model_grid_search, show_shapes=True)
 
@@ -396,10 +407,10 @@ my_callbacks = [
 
 
 
-history_grid_search = model_grid_search.fit([qBOLD_training,QSM_training], training_list , batch_size=10, epochs=100, validation_split=0.1/0.9, callbacks=my_callbacks)
+history_grid_search = model_grid_search.fit([qBOLD_training,QSM_training], training_list , batch_size=16, epochs=100, validation_split=0.1/0.9, callbacks=my_callbacks)
 
-model_grid_search.save("models/"+version+ "Model_2D_params_grid_search_2.h5")
-np.save('models/'+version+'history_params_2D_grid_search_2.npy',history_grid_search.history)
+model_grid_search.save("models/"+version+ "Model_2D_params_grid_search_float16.h5")
+np.save('models/'+version+'history_params_2D_grid_search_float16.npy',history_grid_search.history)
 
 # %%
 
