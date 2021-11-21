@@ -6,6 +6,9 @@ config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
 from tensorflow import keras
 from tensorflow.keras import layers
 
+#tf.debugging.enable_check_numerics() incredibly slow since check runs on cpu
+
+
 import numpy as np
 from numpy.random import rand, randn,shuffle
 import matplotlib.pyplot as plt
@@ -195,8 +198,8 @@ QQplt.check_Params_transformed(label_transformed,prediction_transformed,Number,'
 
 QQplt.check_Params_transformed_hist(label_transformed,prediction_transformed,'CNN_Uniform_GESFIDE_16Echoes_evaluation')
 
-
 QQplt.check_nu_calc(label_transformed,prediction_transformed,QSM_test)
+QQplt.check_nu_calc_QSM_noiseless(label_transformed,prediction_transformed,test_list)
 
 
 nu_calc = QQfunc.f_nu(prediction_transformed[2],prediction_transformed[4],QSM_test)
@@ -267,6 +270,13 @@ flat_chinb = layers.Flatten(name = 'flat_chinb')(output_Params[4])
 flat_qBOLD = layers.Reshape((-1,16),name = 'flat_qBOLD')(model_params.input[0])
 flat_QSM = layers.Flatten(name = 'flat_QSM')(model_params.input[1])
 
+flat_S0 = layers.ReLU(max_value=1.0)(flat_S0)
+flat_R2 = layers.ReLU(max_value=1.0)(flat_R2)
+flat_Y = layers.ReLU(max_value=1.0)(flat_Y)
+flat_nu = layers.ReLU(max_value=1.0)(flat_nu)
+flat_chinb = layers.ReLU(max_value=1.0)(flat_chinb)
+flat_qBOLD = layers.ReLU(max_value=1.0)(flat_qBOLD)
+
 #flat_S0=layers.Activation('linear', dtype='float32')(flat_S0)
 #flat_R2=layers.Activation('linear', dtype='float32')(flat_R2)
 #flat_Y=layers.Activation('linear', dtype='float32')(flat_Y)
@@ -278,27 +288,41 @@ flat_QSM = layers.Flatten(name = 'flat_QSM')(model_params.input[1])
 
 grid_search_layer = layers.Lambda(QQfunc.grid_search_wrapper, name = 'grid_search')([flat_S0,flat_R2,flat_Y,flat_nu,flat_chinb,flat_qBOLD,flat_QSM])
 
-conv_grid_search_1 = layers.Conv3D(filters = 8,
-                                   kernel_size=(1,3,3),
-                                   strides=(1,2,2),
+#grid_search_layer = tf.debugging.check_numerics(grid_search_layer, message="check grid_search_layer")
+
+conv_grid_search_1 = layers.Conv2D(filters = 8,
+                                   kernel_size=(3,3),
+                                   strides=(2,2),
                                    activation="tanh",
+                                   #kernel_regularizer=tf.keras.regularizers.l1(0.01),
+                                   #bias_regularizer=tf.keras.regularizers.l1(0.01),
                                    name="conv_grid_1")(grid_search_layer)
 
+#drop_grid_search_1 = layers.Dropout(0.1)(conv_grid_search_1)
 
-conv_grid_search_2 = layers.Conv3D(filters = 16,
-                                   kernel_size=(1,3,3),
-                                   strides=(1,2,2),
+conv_grid_search_2 = layers.Conv2D(filters = 16,
+                                   kernel_size=(3,3),
+                                   strides=(2,2),
                                    activation="tanh",
+                                   #kernel_regularizer=tf.keras.regularizers.l1(0.01),
+                                   #bias_regularizer=tf.keras.regularizers.l1(0.01),
                                    name="conv_grid_2")(conv_grid_search_1)
+
+#drop_grid_search_2 = layers.Dropout(0.1)(conv_grid_search_2)
 
 #reshape_conv_grid_search_2 = layers.Reshape((-1,4,16),name='reshape_conv_grid_2')(conv_grid_search_2)
 
 
-conv_grid_search_3 = layers.Conv3D(filters = 32,
-                                   kernel_size=(1,4,4),
-                                   strides=(1,1,1),
+conv_grid_search_3 = layers.Conv2D(filters = 32,
+                                   kernel_size=(4,4),
+                                   strides=(1,1),
                                    activation="tanh",
+                                   #kernel_regularizer=tf.keras.regularizers.l1(0.01),
+                                   #bias_regularizer=tf.keras.regularizers.l1(0.01),
                                    name="conv_grid_3")(conv_grid_search_2)
+
+#drop_grid_search_3 = layers.Dropout(0.1)(conv_grid_search_3)
+
 
 reshape_grid_search = layers.Reshape((30,30,32),name='collapse_parameter_space')(conv_grid_search_3)
 
@@ -354,7 +378,7 @@ def get_model_memory_usage(batch_size, model):
 get_model_memory_usage(50,model_grid_search)
 #%%
 
-opt = keras.optimizers.Adam(0.001, clipnorm=1.)
+opt = keras.optimizers.Adam(0.001, clipvalue=10.)
 #loss=keras.losses.MeanAbsolutePercentageError()
 #loss=keras.losses.MeanSquaredLogarithmicError()
 loss=keras.losses.MeanAbsoluteError()
@@ -389,21 +413,21 @@ model_grid_search.compile(
 
 my_callbacks = [
     tf.keras.callbacks.EarlyStopping(patience=3),
-    #tf.keras.callbacks.ModelCheckpoint(filepath='model.{epoch:02d}-{val_loss:.2f}.h5'),
-    #tf.keras.callbacks.TensorBoard(log_dir='./logs/grid_search_1',profile_batch=[1,3])
+    tf.keras.callbacks.ModelCheckpoint(filepath='model_grid_search.{epoch:02d}-{val_loss:.2f}.h5'),
+    tf.keras.callbacks.TensorBoard(log_dir='./logs/grid_search_1',profile_batch=[1,3])
 ]
 
 
 
 
-history_grid_search = model_grid_search.fit([qBOLD_training,QSM_training], training_list , batch_size=10, epochs=100, validation_split=0.1/0.9, callbacks=my_callbacks)
+history_grid_search = model_grid_search.fit([qBOLD_training,QSM_training], training_list , batch_size=8, epochs=100, validation_split=0.1/0.9, callbacks=my_callbacks)
 
 model_grid_search.save("models/"+version+ "Model_2D_params_grid_search_2.h5")
 np.save('models/'+version+'history_params_2D_grid_search_2.npy',history_grid_search.history)
 
 # %%
 
-model_grid_search = keras.models.load_model("models/"+version+ "Model_2D_params_grid_search.h5")
+model_grid_search = keras.models.load_model("models/"+version+ "Model_2D_params_grid_search_2.h5")
 model_grid_search.summary()
 keras.utils.plot_model(model_grid_search, show_shapes=True)
 # %%
@@ -414,11 +438,13 @@ p_grid[0].shape
 Number=2
 label_transformed=QQplt.translate_Params(test_list)
 prediction_transformed_grid=QQplt.translate_Params(p_grid)
-QQplt.check_Params_transformed(label_transformed,prediction_transformed_grid,Number,'CNN_Uniform_GESFIDE_16Echoes_grid_search')
+QQplt.check_Params_transformed(label_transformed,prediction_transformed_grid,Number,'CNN_Uniform_GESFIDE_16Echoes_grid_search_2')
 
-QQplt.check_Params_transformed_hist(label_transformed,prediction_transformed_grid,'CNN_Uniform_GESFIDE_16Echoes_grid_search_evaluation')
+QQplt.check_Params_transformed_hist(label_transformed,prediction_transformed_grid,'CNN_Uniform_GESFIDE_16Echoes_grid_search_2_evaluation')
 
 QQplt.check_nu_calc(label_transformed,prediction_transformed_grid,QSM_test)
+QQplt.check_nu_calc_QSM_noiseless(label_transformed,prediction_transformed_grid,test_list)
+
 
 
 #%%

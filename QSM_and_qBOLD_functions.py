@@ -144,7 +144,7 @@ def f_qBOLD_tensor(tensor):
     t_Echo_fall=tf.constant([42,45,48], dtype=tf.float32)/1000
     t_Echo_fall=tf.expand_dims(t_Echo_fall,0)
     output_Echo_fall = S0 * tf.math.exp(-R2*t_Echo_fall - nu*f_hyper_tensor(dw*(t_Echo_fall-TE)))
-    return tf.concat([output_FID,output_Echo_rise,output_Echo_fall],axis=-1)
+    return tf.clip_by_value(tf.concat([output_FID,output_Echo_rise,output_Echo_fall],axis=-1),0,2)
 
 
 def f_QSM_tensor(tensor):
@@ -174,7 +174,7 @@ def f_QSM_tensor(tensor):
     Summand1 = (chi_ba/alpha +psi_Hb*delta_chi_Hb * ((1-(1-alpha)*SaO2)/alpha - Y) )*nu
     Summand2 = (1 - nu/alpha) * chi_nb
 
-    return Summand1+Summand2 #np.array version is np.array([a+b]).T, maybe transpose here too
+    return tf.clip_by_value(Summand1+Summand2,-1,1) #np.array version is np.array([a+b]).T, maybe transpose here too
 
 def f_nu_tensor(c,e,QSM):
     Hct = 0.357
@@ -194,10 +194,32 @@ def f_nu_tensor(c,e,QSM):
     d = (nu-0.001)/(0.1-0.001)
     return tf.clip_by_value(d,0,1)
 
+def f_nu_tensor_2(tensor):
+    c = tensor[0]
+    e = tensor[1]
+    QSM=tensor[2]
+    Hct = 0.357
+    SaO2 = 0.98
+    alpha = 0.77;              # Ratio of deoxygenated and total blood volume
+    delta_chi_Hb = 12.522;     # Susceptibility difference between dHb and Hb in ppm
+    psi_Hb = Hct*0.34/1.335    # Blood Hb volume fraction
+    chi_oHb = -0.813           # Susceptibility of oxyhemoglobin in ppm
+    chi_p = -0.0377            # Susceptibility of plasma in ppm
+    chi_ba = psi_Hb*chi_oHb + (1-psi_Hb)*chi_p # Susceptibility of fully oxygenated blood in ppm
+
+    Y= (SaO2 - 0.01) * c + 0.01
+    chi_nb = ( 0.1-(-0.1) ) * e - 0.1
+
+    nenner = (chi_ba-chi_nb)/alpha + psi_Hb*delta_chi_Hb * ((1-(1-alpha)*SaO2)/alpha - Y)
+    nu = tf.math.divide_no_nan( QSM - chi_nb, nenner)
+    d = (nu-0.001)/(0.1-0.001)
+    return tf.clip_by_value(d,0,1)
+
+
 def grid_search_wrapper(input_tensor):
     #map function over n_batch
     output=tf.map_fn(grid_search_nu_Y_tensor,input_tensor,fn_output_signature=tf.float32,parallel_iterations=10)
-    output=tf.ensure_shape(output,[None,900,20,20,5+16+1])
+    #output=tf.ensure_shape(output,[None,900,20,20,5+16+1])
     return output
 
 def grid_search_nu_Y_tensor(input_tensor):
@@ -223,7 +245,7 @@ def grid_search_nu_Y_tensor(input_tensor):
     c_stop  = tf.clip_by_value( tf.expand_dims(c + 0.3,-1)*tf.ones([1,n_grid_d]),0+0.3,1 )                       # shape (n_voxel,n_grid)
     c_plane = tf.linspace(c_start,c_stop,n_grid_c,axis=-2)                        # shape (n_voxel,n_grid,n_grid)          Y varied along first n_grid
 
-    d_calc = f_nu_tensor(c,e,QSM)
+    d_calc = tf.debugging.check_numerics(f_nu_tensor(c,e,QSM),message='d_calc numerics problem')
     d_start = tf.clip_by_value( tf.expand_dims(d_calc - 0.3,-1)*tf.ones([1,n_grid_d]),0.01,1-0.3 )                      # shape (n_voxel,n_grid)
     d_stop  = tf.clip_by_value( tf.expand_dims(d_calc + 0.3,-1)*tf.ones([1,n_grid_d]),0+0.3,1 )                       # shape (n_voxel,n_grid)
     d_plane = tf.linspace(d_start,d_stop,n_grid_d,axis=-1)                        # shape (n_voxel,n_grid,n_grid)          nu varied along second n_grid
@@ -236,12 +258,12 @@ def grid_search_nu_Y_tensor(input_tensor):
     d_plane=tf.reshape(d_plane,[n_voxel*n_grid_c*n_grid_d])
     e_plane=tf.reshape(e_plane,[n_voxel*n_grid_c*n_grid_d])
 
-    qBOLD_calculated = f_qBOLD_tensor([a_plane,b_plane,c_plane,d_plane,e_plane])                        # shape (n_voxel,n_grid,n_grid,n_echoes)
+    qBOLD_calculated = tf.debugging.check_numerics(f_qBOLD_tensor([a_plane,b_plane,c_plane,d_plane,e_plane]), message='qBOLD calculated numerics problem')                        # shape (n_voxel,n_grid,n_grid,n_echoes)
     #qBOLD_calculated = tf.ensure_shape(qBOLD_calculated,[n_voxel*n_grid_c*n_grid_d,16])
     qBOLD_residuals = qBOLD_calculated - tf.repeat(qBOLD,n_grid_c*n_grid_d,axis=0)                        # shape (n_voxel,n_grid,n_grid,n_echoes)
     qBOLD_residuals =tf.reshape(qBOLD_residuals,[n_voxel,n_grid_c,n_grid_d,16])
 
-    QSM_calculated = f_QSM_tensor([c_plane,d_plane,e_plane])                            # shape (n_voxel,n_grid,n_grid)
+    QSM_calculated =  tf.debugging.check_numerics(f_QSM_tensor([c_plane,d_plane,e_plane]) , message='QSM calculated numerics problem')                             # shape (n_voxel,n_grid,n_grid)
     #QSM_calculated = tf.ensure_shape(QSM_calculated,[n_voxel*n_grid_c*n_grid_d])
     QSM_residuals = QSM_calculated - tf.repeat(QSM,n_grid_c*n_grid_d,axis=0)    # shape (n_voxel,n_grid,n_grid,1)
     QSM_residuals =tf.reshape(QSM_residuals,[n_voxel,n_grid_c,n_grid_d,1])
