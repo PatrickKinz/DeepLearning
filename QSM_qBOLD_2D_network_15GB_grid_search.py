@@ -326,15 +326,17 @@ conv_grid_search_3 = layers.Conv2D(filters = 32,
 
 reshape_grid_search = layers.Reshape((30,30,32),name='collapse_parameter_space')(conv_grid_search_3)
 
-conv_S0_grid = layers.Conv2D(1,3,padding='same',activation="linear", name = 'S0_grid')(    reshape_grid_search)
-conv_R2_grid = layers.Conv2D(1,3,padding='same',activation="linear", name = 'R2_grid')(    reshape_grid_search)
+#conv_S0_grid = layers.Conv2D(1,3,padding='same',activation="linear", name = 'S0_grid')(    reshape_grid_search)
+#conv_R2_grid = layers.Conv2D(1,3,padding='same',activation="linear", name = 'R2_grid')(    reshape_grid_search)
 conv_Y_grid = layers.Conv2D(1,3,padding='same',activation="linear", name = 'Y_grid')(     reshape_grid_search)
-conv_nu_grid = layers.Conv2D(1,3,padding='same',activation="linear", name = 'nu_grid')(    reshape_grid_search)
-conv_chinb_grid = layers.Conv2D(1,3,padding='same',activation="linear", name = 'chi_nb_grid')(reshape_grid_search)
+calc_nu_grid = layers.Lambda(QQfunc.f_nu_tensor_2, name="nu_calc")([conv_Y_grid,output_Params[4],model_params.input[1]])
+#conv_nu_grid = layers.Conv2D(1,3,padding='same',activation="linear", name = 'nu_grid')(    reshape_grid_search)
+#conv_chinb_grid = layers.Conv2D(1,3,padding='same',activation="linear", name = 'chi_nb_grid')(reshape_grid_search)
 
 
 
-model_grid_search = keras.Model(inputs=[model_params.input[0],model_params.input[1]],outputs=[conv_S0_grid,conv_R2_grid,conv_Y_grid,conv_nu_grid,conv_chinb_grid],name="grid_search_model")
+#model_grid_search = keras.Model(inputs=[model_params.input[0],model_params.input[1]],outputs=[conv_S0_grid,conv_R2_grid,conv_Y_grid,conv_nu_grid,conv_chinb_grid],name="grid_search_model")
+model_grid_search = keras.Model(inputs=[model_params.input[0],model_params.input[1]],outputs=[conv_Y_grid,calc_nu_grid],name="grid_search_model")
 #model_grid_search = keras.Model(inputs=[model_params.input[0],model_params.input[1]],outputs=conv_grid_search_2,name="grid_search_model")
 model_grid_search.summary()
 keras.utils.plot_model(model_grid_search, show_shapes=True)
@@ -384,18 +386,18 @@ opt = keras.optimizers.Adam(0.001, clipvalue=10.)
 loss=keras.losses.MeanAbsoluteError()
 #loss=tf.keras.losses.Huber()
 losses = {
-    "S0_grid":loss,
-    "R2_grid":loss,
+    #"S0_grid":loss,
+    #"R2_grid":loss,
     "Y_grid":loss,
-    "nu_grid":loss,
-    "chi_nb_grid":loss,
+    "nu_calc":loss,
+    #"chi_nb_grid":loss,
 }
 lossWeights = {
-    "S0_grid":1.0,
-    "R2_grid":1.0,
+    #"S0_grid":1.0,
+    #"R2_grid":1.0,
     "Y_grid":1.0,
-    "nu_grid":1.0,
-    "chi_nb_grid":1.0,
+    "nu_calc":1.0,
+    #"chi_nb_grid":1.0,
 }
 
 #model_params.trainable = False
@@ -413,34 +415,36 @@ model_grid_search.compile(
 
 my_callbacks = [
     tf.keras.callbacks.EarlyStopping(patience=3),
-    tf.keras.callbacks.ModelCheckpoint(filepath='model_grid_search.{epoch:02d}-{val_loss:.2f}.h5'),
-    tf.keras.callbacks.TensorBoard(log_dir='./logs/grid_search_1',profile_batch=[1,3])
+    tf.keras.callbacks.ModelCheckpoint(filepath='model_grid_search_3.{epoch:02d}-{val_loss:.2f}.h5'),
+    tf.keras.callbacks.TensorBoard(log_dir='./logs/grid_search_3',profile_batch=[1,3])
 ]
 
 
 
 
-history_grid_search = model_grid_search.fit([qBOLD_training,QSM_training], training_list , batch_size=8, epochs=100, validation_split=0.1/0.9, callbacks=my_callbacks)
+history_grid_search = model_grid_search.fit([qBOLD_training,QSM_training], training_list[2:4] , batch_size=8, epochs=100, validation_split=0.1/0.9, callbacks=my_callbacks)
 
-model_grid_search.save("models/"+version+ "Model_2D_params_grid_search_2.h5")
-np.save('models/'+version+'history_params_2D_grid_search_2.npy',history_grid_search.history)
+model_grid_search.save("models/"+version+ "Model_2D_params_grid_search_3.h5")
+np.save('models/'+version+'history_params_2D_grid_search_3.npy',history_grid_search.history)
 
 # %%
 
-model_grid_search = keras.models.load_model("models/"+version+ "Model_2D_params_grid_search_2.h5")
+model_grid_search = keras.models.load_model("models/"+version+ "Model_2D_params_grid_search_3.h5")
 model_grid_search.summary()
 keras.utils.plot_model(model_grid_search, show_shapes=True)
 # %%
 p_grid = model_grid_search.predict([qBOLD_test,QSM_test])
 p_grid[0].shape
-
+len(p_grid)
+p_combined = [p[0],p[1],p_grid[0],p_grid[1],p[4]]
 #%%
 Number=2
 label_transformed=QQplt.translate_Params(test_list)
-prediction_transformed_grid=QQplt.translate_Params(p_grid)
-QQplt.check_Params_transformed(label_transformed,prediction_transformed_grid,Number,'CNN_Uniform_GESFIDE_16Echoes_grid_search_2')
+prediction_transformed_grid=QQplt.translate_Params(p_combined)
 
-QQplt.check_Params_transformed_hist(label_transformed,prediction_transformed_grid,'CNN_Uniform_GESFIDE_16Echoes_grid_search_2_evaluation')
+QQplt.check_Params_transformed(label_transformed,prediction_transformed_grid,Number,'CNN_Uniform_GESFIDE_16Echoes_grid_search_3')
+
+QQplt.check_Params_transformed_hist(label_transformed,prediction_transformed_grid,'CNN_Uniform_GESFIDE_16Echoes_grid_search_3_evaluation')
 
 QQplt.check_nu_calc(label_transformed,prediction_transformed_grid,QSM_test)
 QQplt.check_nu_calc_QSM_noiseless(label_transformed,prediction_transformed_grid,test_list)
