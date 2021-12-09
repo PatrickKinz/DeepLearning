@@ -42,7 +42,6 @@ QSM_training=Dataset_train['QSM']
 
 
 training_list = [S0_train,R2_train,Y_train,nu_train,chi_nb_train]
-
 #%%
 Dataset_test=np.load("../Brain_Phantom/Patches_no_air_big/15GB_1Pnoise_test.npz")
 S0_test=Dataset_test['S0']

@@ -44,8 +44,8 @@ test3=tf.broadcast_to(tf.expand_dims(test2,-1),[5,2])
 test3.shape
 
 
-test4 = tf.ones([5,1])
-test5 = tf.ones([1,3])
+test4 = tf.ones([5,1,1])
+test5 = tf.ones([1,3,3])
 test6 = test4*test5
 test6.shape
 [test6.shape[0],test6.shape[1],6]
@@ -60,3 +60,23 @@ b.shape
 c=a*b
 c.shape
 c
+
+#%%
+array_a = np.zeros((10,10,5))
+array_b = np.ones((10,10,5))
+array_c = np.ones((10,10,5))*2
+list_arrays = [array_a,array_b,array_c]
+array_stack = np.stack(list_arrays,axis=0)
+
+#array_a = np.append(array_a,array_b,axis=0)
+array_stack.shape
+array_stack[:,1,1,1]
+
+index = [*range(len(list_arrays))]
+index
+np.random.shuffle(index)
+print(index)
+list_arrays_shuffled = [list_arrays[i] for i in index]
+array_stack_shuffled = np.stack(list_arrays_shuffled,axis=0)
+
+array_stack_shuffled[:,1,1,1]
