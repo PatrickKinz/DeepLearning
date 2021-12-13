@@ -300,6 +300,7 @@ create_images(seg,"../Brain_Phantom/Patches_with_air_big/15GB_1Pnoise_test",mult
 
 #42441    *    (5 + 16 + 1)        *30*30    *  4                                  *20
 #patches *(params + qBOLD + QSM) *image size *float32 = 3.361.327.200 = 3.35GB     67.226.544.000
+
 #%%
 """ Loop over saved slices """
     """ Add noise to signal slices, repeat K times (total number K*?*M*N)"""
