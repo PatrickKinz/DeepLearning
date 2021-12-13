@@ -30,7 +30,7 @@ import h5py
 
 #np.savez("../Brain_Phantom/Patches/NumpyArchiv",Params_training=Params_training,Params_test=Params_test,qBOLD_training=qBOLD_training,qBOLD_test=qBOLD_test,QSM_training=QSM_training,QSM_test=QSM_test)
 
-Dataset_train=np.load("../Brain_Phantom/Patches_no_air_big/15GB_1Pnoise_train_val.npz")
+Dataset_train=np.load("../Brain_Phantom/Patches_with_air_big/15GB_1Pnoise_train_val.npz")
 S0_train=Dataset_train['S0']
 S0_train.shape
 R2_train=Dataset_train['R2']
@@ -39,7 +39,7 @@ nu_train=Dataset_train['nu']
 chi_nb_train=Dataset_train['chi_nb']
 qBOLD_training=Dataset_train['qBOLD']
 QSM_training=Dataset_train['QSM']
-
+Seg_training=Dataset_train['Seg']
 
 training_list = [S0_train,R2_train,Y_train,nu_train,chi_nb_train]
 #%%
@@ -130,6 +130,12 @@ check_data(qBOLD_test,QSM_test,S0_test,R2_test,Y_test,nu_test,chi_nb_test,Seg_te
 check_data(qBOLD_test,QSM_test,S0_test,R2_test,Y_test,nu_test,chi_nb_test,Seg_test,2)
 check_data(qBOLD_test,QSM_test,S0_test,R2_test,Y_test,nu_test,chi_nb_test,Seg_test,3)
 
+
+
+
+
+
+
 # %% Network
 
 input_qBOLD = keras.Input(shape=(30,30,16), name = 'Input_qBOLD')
@@ -147,10 +153,6 @@ conv_qBOLD_1 = keras.layers.Conv2D(n,
                   activation='tanh',
                   name='conv_qBOLD_1')(input_qBOLD)
 
-
-
-
-
 model_qBOLD = keras.Model(inputs=input_qBOLD, outputs = conv_qBOLD_1, name="qBOLD model")
 model_qBOLD.summary()
 keras.utils.plot_model(model_qBOLD, show_shapes=True)
@@ -165,10 +167,99 @@ conv_QSM_1 = keras.layers.Conv2D(n,
                   activation='tanh',
                   name='conv_QSM_1')(input_QSM)
 
-
 model_QSM = keras.Model(inputs=input_QSM, outputs = conv_QSM_1, name="QSM model")
 model_QSM.summary()
 keras.utils.plot_model(model_QSM, show_shapes=True)
+
+#%% Network Segmentation
+conv_Seg_1 = keras.layers.Conv2D(8,
+                kernel_size=3,
+                strides=(1),
+                padding='same',
+                dilation_rate=1,
+                activation='tanh',
+                name='conv_Seg_1')(input_qBOLD)
+conv_Seg_2 = keras.layers.Conv2D(16,
+                kernel_size=3,
+                strides=(1),
+                padding='same',
+                dilation_rate=1,
+                activation='tanh',
+                name='conv_Seg_2')(conv_Seg_1)
+conv_Seg_3 = keras.layers.Conv2D(32,
+                kernel_size=3,
+                strides=(1),
+                padding='same',
+                dilation_rate=1,
+                activation='tanh',
+                name='conv_Seg_3')(conv_Seg_2)
+n_types = 3
+conv_Seg_4 = keras.layers.Conv2D(n_types,
+                kernel_size=3,
+                strides=(1),
+                padding='same',
+                dilation_rate=1,
+                activation='relu',
+                name='conv_Seg_4')(conv_Seg_3)
+
+model_Seg = keras.Model(inputs=input_qBOLD, outputs = conv_Seg_4, name="Seg_model")
+model_Seg.summary()
+keras.utils.plot_model(model_Seg, show_shapes=True)
+
+opt = keras.optimizers.Adam(0.001, clipnorm=1.)
+model_Seg.compile(optimizer=opt,loss=keras.losses.SparseCategoricalCrossentropy())
+
+my_callbacks = [
+    tf.keras.callbacks.EarlyStopping(patience=3),
+    #tf.keras.callbacks.ModelCheckpoint(filepath='model.{epoch:02d}-{val_loss:.2f}.h5'),
+    #tf.keras.callbacks.TensorBoard(log_dir='./logs/2021_07_15-1330')
+]
+
+#%%
+history_Seg = model_Seg.fit(qBOLD_training, Seg_training , batch_size=100, epochs=100, validation_split=0.1/0.9, callbacks=my_callbacks)
+
+
+#%%
+p_Seg = model_Seg.predict(qBOLD_test)
+p_Seg[0].shape
+
+def check_Seg(Seg_true,Seg_pred,Number): #target prediction
+    fig, axes = plt.subplots(nrows=1, ncols=5,figsize=(15,5))
+    ax = axes.ravel()
+
+    P0=ax[0].imshow(Seg_true[Number,:,:], cmap='inferno')
+    ax[0].title.set_text('true')
+    #plt.colorbar(P0,ax=ax[0])
+    P0.set_clim(.0,2)
+
+    P1=ax[1].imshow(Seg_pred[Number,:,:,0], cmap='inferno')
+    ax[1].title.set_text('tissue')
+    #plt.colorbar(P1,ax=ax[1])
+    P1.set_clim(.0,1)
+
+    P2=ax[2].imshow(Seg_pred[Number,:,:,1], cmap='inferno')
+    ax[2].title.set_text('air')
+    #plt.colorbar(P2,ax=ax[2])
+    P2.set_clim(.0,1)
+
+    P3=ax[3].imshow(Seg_pred[Number,:,:,2], cmap='inferno')
+    ax[3].title.set_text('CSF')
+    #plt.colorbar(P3,ax=ax[3])
+    P3.set_clim(.0,1)
+
+    seg_pred = tf.math.argmax(Seg_pred[Number,:,:,:], axis=-1)
+    P4=ax[4].imshow(seg_pred, cmap='inferno')
+    ax[4].title.set_text('Pred')
+    #plt.colorbar(P3,ax=ax[3])
+    P4.set_clim(.0,2)
+    plt.show()
+
+check_Seg(Seg_test,p_Seg,1)
+check_Seg(Seg_test,p_Seg,2)
+check_Seg(Seg_test,p_Seg,3)
+check_Seg(Seg_test,p_Seg,9)
+check_Seg(Seg_test,p_Seg,19)
+#%%
 
 concat_QQ_1 = layers.Concatenate(name = 'concat_QQ_1')([model_qBOLD.output,model_QSM.output])
 conv_QQ_1 = layers.Conv2D(2*n,3,padding='same',activation="tanh",name = 'conv_QQ_1')(concat_QQ_1)
