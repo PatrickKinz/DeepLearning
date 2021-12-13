@@ -368,21 +368,6 @@ def check_nu_calc(Params_test,p,QSM_test):
     nu_calc = QQfunc.f_nu(p[2],p[4],QSM_test)
 
     fig, axes = plt.subplots(nrows=1, ncols=1,figsize=(5,5))
-    counts, xedges, yedges, im = axes.hist2d(x=Params_test[3][:,:,:].ravel()*100,y=np.squeeze(nu_calc[:,:,:,:]).ravel()*100,bins=30,range=((0,10),(0,10)),cmap='inferno')
-    axes.title.set_text('$v$ [%]')
-    axes.set_xlabel('truth')
-    axes.set_ylabel('calculation')
-    cbar=fig.colorbar(im,ax=axes)
-    cbar.formatter.set_powerlimits((0, 0))
-    axes.plot(np.linspace(0,10,10),np.linspace(0,10,10))
-    plt.show()
-
-def check_nu_calc_QSM_noiseless(Params_test,p,label_test):
-    QSM_calc=tf.expand_dims(QQfunc.f_QSM_tensor(label_test[2:5]),-1)
-    print(QSM_calc.shape)
-    nu_calc = QQfunc.f_nu(p[2],p[4],QSM_calc)
-
-    fig, axes = plt.subplots(nrows=1, ncols=1,figsize=(5,5))
     counts, xedges, yedges, im = axes.hist2d(x=Params_test[3][:,:,:].ravel()*100,y=np.squeeze(nu_calc[:,:,:,:]).ravel()*100,bins=30,range=((0,10),(-5,15)),cmap='inferno')
     axes.title.set_text('$v$ [%]')
     axes.set_xlabel('truth')
@@ -391,7 +376,6 @@ def check_nu_calc_QSM_noiseless(Params_test,p,label_test):
     cbar.formatter.set_powerlimits((0, 0))
     axes.plot(np.linspace(0,10,10),np.linspace(0,10,10))
     plt.show()
-
 
 def check_Params_transformed_hist_3D(Params_test,p):
     fig, axes = plt.subplots(nrows=2, ncols=5,figsize=(15,5))

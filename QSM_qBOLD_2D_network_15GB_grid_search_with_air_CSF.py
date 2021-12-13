@@ -261,17 +261,18 @@ check_Seg(Seg_test,p_Seg,9)
 check_Seg(Seg_test,p_Seg,19)
 #%%
 
-concat_QQ_1 = layers.Concatenate(name = 'concat_QQ_1')([model_qBOLD.output,model_QSM.output])
+concat_QQ_1 = layers.Concatenate(name = 'concat_QQ_1')([model_qBOLD.output,model_QSM.output,model_Seg.output])
 conv_QQ_1 = layers.Conv2D(2*n,3,padding='same',activation="tanh",name = 'conv_QQ_1')(concat_QQ_1)
 #conv_QQ_1 = layers.Conv2D(2*n,3,padding='same',activation="tanh",name = 'conv_QQ_1')(model_qBOLD.output)
 
+conv_QQ_2 = layers.Conv2D(2*n,3,padding='same',activation="tanh",name = 'conv_QQ_2')(conv_QQ_1)
 
 
-conv_S0 = layers.Conv2D(1,3,padding='same',activation="linear", name = 'S0')(    conv_QQ_1)
-conv_R2 = layers.Conv2D(1,3,padding='same',activation="linear", name = 'R2')(    conv_QQ_1)
-conv_Y = layers.Conv2D(1,3,padding='same',activation="linear", name = 'Y')(     conv_QQ_1)
-conv_nu = layers.Conv2D(1,3,padding='same',activation="linear", name = 'nu')(    conv_QQ_1)
-conv_chinb = layers.Conv2D(1,3,padding='same',activation="linear", name = 'chi_nb')(conv_QQ_1)
+conv_S0 = layers.Conv2D(1,3,padding='same',activation="linear", name = 'S0')(    conv_QQ_2)
+conv_R2 = layers.Conv2D(1,3,padding='same',activation="linear", name = 'R2')(    conv_QQ_2)
+conv_Y = layers.Conv2D(1,3,padding='same',activation="linear", name = 'Y')(     conv_QQ_2)
+conv_nu = layers.Conv2D(1,3,padding='same',activation="linear", name = 'nu')(    conv_QQ_2)
+conv_chinb = layers.Conv2D(1,3,padding='same',activation="linear", name = 'chi_nb')(conv_QQ_2)
 
 
 model_params = keras.Model(inputs=[input_qBOLD,input_QSM],outputs=[conv_S0,conv_R2,conv_Y,conv_nu,conv_chinb],name="Params_model")
@@ -318,15 +319,17 @@ my_callbacks = [
     #tf.keras.callbacks.TensorBoard(log_dir='./logs/2021_07_15-1330')
 ]
 
+for l in model_Seg.layers:
+    l.trainable=False
 
 
 
 history_params = model_params.fit([qBOLD_training,QSM_training], training_list , batch_size=100, epochs=100, validation_split=0.1/0.9, callbacks=my_callbacks)
 #history_params = model_params.fit(training_Params_data, epochs=100,validation_data=val_Params_data, callbacks=my_callbacks)
 #%%
-#model_params.save("models/"+version+ "Model_2D_fully_conv_Params_before_qqbold_simple_tanh_linear.h5")
-#np.save('models/'+version+'history_params_2D_fully_conv_Params_before_qqbold_simple_tanh_linear.npy',history_params.history)
-model_params = keras.models.load_model("models/"+version+ "Model_2D_fully_conv_Params_before_qqbold_simple_tanh_linear.h5")
+model_params.save("models/"+version+ "Model_2D_fully_conv_Params_with_air.h5")
+np.save('models/'+version+'history_params_2D_fully_conv_Params_with_air.h5.npy',history_params.history)
+#model_params = keras.models.load_model("models/"+version+ "Model_2D_fully_conv_Params_with_air.h5")
 model_params.summary()
 keras.utils.plot_model(model_params, show_shapes=True)
 
@@ -353,18 +356,103 @@ p = model_params.predict([qBOLD_test,QSM_test])
 p[0].shape
 
 #%%
-Number=2
+Number=1
 label_transformed=QQplt.translate_Params(test_list)
 prediction_transformed=QQplt.translate_Params(p)
-QQplt.check_Params_transformed(label_transformed,prediction_transformed,Number,'CNN_Uniform_GESFIDE_16Echoes_Params')
+QQplt.check_Params_transformed(label_transformed,prediction_transformed,Number,'CNN_Uniform_GESFIDE_16Echoes_Params_with_air')
 
-QQplt.check_Params_transformed_hist(label_transformed,prediction_transformed,'CNN_Uniform_GESFIDE_16Echoes_evaluation')
+QQplt.check_Params_transformed_hist(label_transformed,prediction_transformed,'CNN_Uniform_GESFIDE_16Echoes_evaluation_with_air')
 
 QQplt.check_nu_calc(label_transformed,prediction_transformed,QSM_test)
+def check_nu_calc(Params_test,p,QSM_test):
+    nu_calc = QQfunc.f_nu(p[2],p[4],QSM_test)
+
+    fig, axes = plt.subplots(nrows=1, ncols=1,figsize=(5,5))
+    counts, xedges, yedges, im = axes.hist2d(x=Params_test[3][:,:,:].ravel()*100,y=np.squeeze(nu_calc[:,:,:,:]).ravel()*100,bins=30,range=((1,10),(-5,15)),cmap='inferno')
+    axes.title.set_text('$v$ [%]')
+    axes.set_xlabel('truth')
+    axes.set_ylabel('calculation')
+    cbar=fig.colorbar(im,ax=axes)
+    cbar.formatter.set_powerlimits((0, 0))
+    axes.plot(np.linspace(0,10,10),np.linspace(0,10,10))
+    plt.show()
+
+check_nu_calc(label_transformed,prediction_transformed,QSM_test)
+
+
 QQplt.check_nu_calc_QSM_noiseless(label_transformed,prediction_transformed,test_list)
 
 
 nu_calc = QQfunc.f_nu(prediction_transformed[2],prediction_transformed[4],QSM_test)
+
+def check_Params_transformed_hist(Params_test,p,QSM_test,filename):
+    nu_calc = QQfunc.f_nu(p[2],p[4],QSM_test)
+
+    fig, axes = plt.subplots(nrows=2, ncols=5,figsize=(15,5))
+    ax = axes.ravel()
+    ax[0].hist(Params_test[0][:,:,:].ravel(),range=((0,1)))
+    ax[0].title.set_text('S0')
+    ax[1].hist(Params_test[1][:,:,:].ravel(),range=((0,30)))
+    ax[1].title.set_text('R2')
+    ax[2].hist(Params_test[2][:,:,:].ravel(),range=((0,1)))
+    ax[2].title.set_text('Y')
+    ax[3].hist(Params_test[3][:,:,:].ravel(),range=((0,0.1)))
+    ax[3].title.set_text('nu')
+    ax[4].hist(Params_test[4][:,:,:].ravel(),range=((-.1,.1)))
+    ax[4].title.set_text('chi_nb')
+    ax[5].hist(np.squeeze(p[0][:,:,:,:]).ravel(),range=((0,1)))
+    ax[6].hist(np.squeeze(p[1][:,:,:,:]).ravel(),range=((0,30)))
+    ax[7].hist(np.squeeze(p[2][:,:,:,:]).ravel(),range=((0,1)))
+    ax[8].hist(np.squeeze(p[3][:,:,:,:]).ravel(),range=((0,.1)))
+    ax[9].hist(np.squeeze(p[4][:,:,:,:]).ravel(),range=((-.1,.1)))
+    plt.show()
+
+    fig, axes = plt.subplots(nrows=2, ncols=3,figsize=(12,7))
+    ax = axes.ravel()
+    counts, xedges, yedges, im = ax[0].hist2d(x=Params_test[0][:,:,:].ravel(),y=np.squeeze(p[0][:,:,:,:]).ravel(),bins=30,range=((0.1,1),(0.1,1)),cmap='inferno')
+    ax[0].title.set_text('$S_0$ [a.u.]')
+    ax[0].set_xlabel('truth')
+    ax[0].set_ylabel('prediction')
+    cbar=fig.colorbar(im,ax=ax[0])
+    cbar.formatter.set_powerlimits((0, 0))
+    counts, xedges, yedges, im = ax[1].hist2d(x=Params_test[1][:,:,:].ravel(),y=np.squeeze(p[1][:,:,:,:]).ravel(),bins=30,range=((5,30),(5,30)),cmap='inferno')
+    ax[1].title.set_text('$R_2$ [Hz]')
+    ax[1].set_xlabel('truth')
+    ax[1].set_ylabel('prediction')
+    cbar=fig.colorbar(im,ax=ax[1])
+    cbar.formatter.set_powerlimits((0, 0))
+    counts_Y, xedges_Y, yedges, im = ax[2].hist2d(x=Params_test[2][:,:,:].ravel()*100,y=np.squeeze(p[2][:,:,:,:]).ravel()*100,bins=30,range=((5,98),(5,98)),cmap='inferno')
+    ax[2].title.set_text('Y [%]')
+    ax[2].set_xlabel('truth')
+    ax[2].set_ylabel('prediction')
+    ax[2].plot(np.linspace(5,98,10),np.linspace(5,98,10))
+    cbar=fig.colorbar(im,ax=ax[2])
+    cbar.formatter.set_powerlimits((0, 0))
+    counts, xedges, yedges, im = ax[3].hist2d(x=Params_test[3][:,:,:].ravel()*100,y=np.squeeze(p[3][:,:,:,:]).ravel()*100,bins=30,range=((1,.1*100),(1,.1*100)),cmap='inferno')
+    ax[3].title.set_text('$v$ [%]')
+    ax[3].set_xlabel('truth')
+    ax[3].set_ylabel('prediction')
+    ax[3].plot(np.linspace(1,10,10),np.linspace(1,10,10))
+    cbar=fig.colorbar(im,ax=ax[3])
+    cbar.formatter.set_powerlimits((0, 0))
+    counts, xedges, yedges, im = ax[4].hist2d(x=Params_test[3][:,:,:].ravel()*100,y=np.squeeze(nu_calc[:,:,:,:]).ravel()*100,bins=30,range=((1,10),(1,10)),cmap='inferno')
+    ax[4].title.set_text('$v$ calc [%]')
+    ax[4].set_xlabel('truth')
+    ax[4].set_ylabel('prediction')
+    ax[4].plot(np.linspace(1,10,10),np.linspace(1,10,10))
+    cbar=fig.colorbar(im,ax=ax[4])
+    cbar.formatter.set_powerlimits((0, 0))
+    counts, xedges, yedges, im = ax[5].hist2d(x=Params_test[4][:,:,:].ravel()*1000,y=np.squeeze(p[4][:,:,:,:]).ravel()*1000,bins=30,range=((-100+10,100),(-100+10,100)),cmap='inferno')
+    ax[5].title.set_text('$\chi_{nb}$ [ppb]')
+    ax[5].set_xlabel('truth')
+    ax[5].set_ylabel('prediction')
+    cbar=fig.colorbar(im,ax=ax[5])
+    cbar.formatter.set_powerlimits((0, 0))
+    plt.tight_layout()
+    plt.show()
+    fig.savefig('plots/'+filename+'.png')
+
+check_Params_transformed_hist(label_transformed,prediction_transformed,QSM_test,'CNN_Uniform_GESFIDE_16Echoes_evaluation_with_air')
 #%%
 fig, axes = plt.subplots(nrows=2, ncols=3,figsize=(15,10))
 ax=axes.ravel()
