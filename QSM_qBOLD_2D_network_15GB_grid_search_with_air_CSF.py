@@ -153,7 +153,23 @@ conv_qBOLD_1 = keras.layers.Conv2D(n,
                   activation='tanh',
                   name='conv_qBOLD_1')(input_qBOLD)
 
-model_qBOLD = keras.Model(inputs=input_qBOLD, outputs = conv_qBOLD_1, name="qBOLD model")
+conv_qBOLD_2 = keras.layers.Conv2D(2*n,
+                  kernel_size = 3,
+                  strides=1,
+                  padding='same',
+                  dilation_rate=1,
+                  activation='tanh',
+                  name='conv_qBOLD_2')(conv_qBOLD_1)
+
+conv_qBOLD_3 = keras.layers.Conv2D(3*n,
+                  kernel_size = 3,
+                  strides=1,
+                  padding='same',
+                  dilation_rate=1,
+                  activation='tanh',
+                  name='conv_qBOLD_3')(conv_qBOLD_2)
+
+model_qBOLD = keras.Model(inputs=input_qBOLD, outputs = conv_qBOLD_3, name="qBOLD model")
 model_qBOLD.summary()
 keras.utils.plot_model(model_qBOLD, show_shapes=True)
 
@@ -167,7 +183,16 @@ conv_QSM_1 = keras.layers.Conv2D(n,
                   activation='tanh',
                   name='conv_QSM_1')(input_QSM)
 
-model_QSM = keras.Model(inputs=input_QSM, outputs = conv_QSM_1, name="QSM model")
+conv_QSM_2 = keras.layers.Conv2D(2*n,
+                  kernel_size=3,
+                  strides=(1),
+                  padding='same',
+                  dilation_rate=1,
+                  activation='tanh',
+                  name='conv_QSM_2')(conv_QSM_1)
+
+
+model_QSM = keras.Model(inputs=input_QSM, outputs = conv_QSM_2, name="QSM model")
 model_QSM.summary()
 keras.utils.plot_model(model_QSM, show_shapes=True)
 
@@ -265,14 +290,15 @@ concat_QQ_1 = layers.Concatenate(name = 'concat_QQ_1')([model_qBOLD.output,model
 conv_QQ_1 = layers.Conv2D(2*n,3,padding='same',activation="tanh",name = 'conv_QQ_1')(concat_QQ_1)
 #conv_QQ_1 = layers.Conv2D(2*n,3,padding='same',activation="tanh",name = 'conv_QQ_1')(model_qBOLD.output)
 
-conv_QQ_2 = layers.Conv2D(2*n,3,padding='same',activation="tanh",name = 'conv_QQ_2')(conv_QQ_1)
+conv_QQ_2 = layers.Conv2D(4*n,3,padding='same',activation="tanh",name = 'conv_QQ_2')(conv_QQ_1)
+conv_QQ_3 = layers.Conv2D(8*n,3,padding='same',activation="tanh",name = 'conv_QQ_3')(conv_QQ_2)
 
 
-conv_S0 = layers.Conv2D(1,3,padding='same',activation="linear", name = 'S0')(    conv_QQ_2)
-conv_R2 = layers.Conv2D(1,3,padding='same',activation="linear", name = 'R2')(    conv_QQ_2)
-conv_Y = layers.Conv2D(1,3,padding='same',activation="linear", name = 'Y')(     conv_QQ_2)
-conv_nu = layers.Conv2D(1,3,padding='same',activation="linear", name = 'nu')(    conv_QQ_2)
-conv_chinb = layers.Conv2D(1,3,padding='same',activation="linear", name = 'chi_nb')(conv_QQ_2)
+conv_S0 = layers.Conv2D(1,3,padding='same',activation="linear", name = 'S0')(    conv_QQ_3)
+conv_R2 = layers.Conv2D(1,3,padding='same',activation="linear", name = 'R2')(    conv_QQ_3)
+conv_Y = layers.Conv2D(1,3,padding='same',activation="linear", name = 'Y')(     conv_QQ_3)
+conv_nu = layers.Conv2D(1,3,padding='same',activation="linear", name = 'nu')(    conv_QQ_3)
+conv_chinb = layers.Conv2D(1,3,padding='same',activation="linear", name = 'chi_nb')(conv_QQ_3)
 
 
 model_params = keras.Model(inputs=[input_qBOLD,input_QSM],outputs=[conv_S0,conv_R2,conv_Y,conv_nu,conv_chinb],name="Params_model")
@@ -327,9 +353,9 @@ for l in model_Seg.layers:
 history_params = model_params.fit([qBOLD_training,QSM_training], training_list , batch_size=100, epochs=100, validation_split=0.1/0.9, callbacks=my_callbacks)
 #history_params = model_params.fit(training_Params_data, epochs=100,validation_data=val_Params_data, callbacks=my_callbacks)
 #%%
-model_params.save("models/"+version+ "Model_2D_fully_conv_Params_with_air.h5")
-np.save('models/'+version+'history_params_2D_fully_conv_Params_with_air.h5.npy',history_params.history)
-#model_params = keras.models.load_model("models/"+version+ "Model_2D_fully_conv_Params_with_air.h5")
+#model_params.save("models/"+version+ "Model_2D_fully_conv_Params_deeper_with_air.h5")
+#np.save('models/'+version+'history_params_2D_fully_conv_Params_deeper_with_air.h5.npy',history_params.history)
+model_params = keras.models.load_model("models/"+version+ "Model_2D_fully_conv_Params_deeper_with_air.h5")
 model_params.summary()
 keras.utils.plot_model(model_params, show_shapes=True)
 
@@ -453,6 +479,325 @@ def check_Params_transformed_hist(Params_test,p,QSM_test,filename):
     fig.savefig('plots/'+filename+'.png')
 
 check_Params_transformed_hist(label_transformed,prediction_transformed,QSM_test,'CNN_Uniform_GESFIDE_16Echoes_evaluation_with_air')
+
+
+#somehow combine v CNN and v calc
+"""
+if v_CNN > 4.5 :
+    v = v_CNN
+else:
+    if v_true < 4 :
+        v = v_CNN
+    else:
+        v = v_calc
+"""
+"""
+if v_calc > 4.5 and v_CNN > 4
+    v = v_CNN
+if v_calc > 4.5 and v_CNN < 4
+    v = v_calc
+if v_calc > 4.5
+    v = c_CNN
+"""
+#%%
+def check_nu_CNN_nu_calc(Params_test,p,QSM_test):
+    nu_calc = QQfunc.f_nu(p[2],p[4],QSM_test).ravel()*100
+    nu_CNN = p[3][:,:,:].ravel()*100
+    nu = np.zeros_like(nu_calc)
+    nu_comb2 = np.zeros_like(nu_calc)
+    for i in tqdm(range(len(nu_calc))):
+        if nu_calc[i] > 4:
+            if nu_CNN[i] > 4:
+                nu[i] = nu_CNN[i]
+            else:
+                nu[i] = nu_calc[i]
+        else:
+            nu[i] = nu_CNN[i]
+        if nu_calc[i]-nu_CNN[i] > 1:
+            nu_comb2[i] = nu_calc[i]
+        else:
+            nu_comb2[i] = nu_CNN[i]
+
+
+
+    fig, ax = plt.subplots(nrows=2, ncols=3,figsize=(20,10))
+    axes = ax.ravel()
+    counts, xedges, yedges, im = axes[0].hist2d(x=Params_test[3][:,:,:].ravel()*100,y=nu_CNN,bins=30,range=((1,10),(0,10)),cmap='inferno')
+    axes[0].title.set_text('$v$ [%]')
+    axes[0].set_xlabel('truth')
+    axes[0].set_ylabel('CNN')
+    cbar=fig.colorbar(im,ax=axes[0])
+    cbar.formatter.set_powerlimits((0, 0))
+    axes[0].plot(np.linspace(0,10,10),np.linspace(0,10,10))
+    counts, xedges, yedges, im = axes[1].hist2d(x=Params_test[3][:,:,:].ravel()*100,y=nu_calc,bins=30,range=((1,10),(0,10)),cmap='inferno')
+    axes[1].title.set_text('$v$ [%]')
+    axes[1].set_xlabel('truth')
+    axes[1].set_ylabel('calculation')
+    cbar=fig.colorbar(im,ax=axes[1])
+    cbar.formatter.set_powerlimits((0, 0))
+    axes[1].plot(np.linspace(0,10,10),np.linspace(0,10,10))
+    counts, xedges, yedges, im = axes[2].hist2d(x=Params_test[3][:,:,:].ravel()*100,y=nu,bins=30,range=((1,10),(0,10)),cmap='inferno')
+    axes[2].title.set_text('$v$ [%]')
+    axes[2].set_xlabel('truth')
+    axes[2].set_ylabel('combined')
+    cbar=fig.colorbar(im,ax=axes[2])
+    cbar.formatter.set_powerlimits((0, 0))
+    axes[2].plot(np.linspace(0,10,10),np.linspace(0,10,10))
+    counts, xedges, yedges, im = axes[3].hist2d(x=nu_calc,y=nu_CNN,bins=30,range=((1,10),(2,10)),cmap='inferno')
+    axes[3].title.set_text('$v$ [%]')
+    axes[3].set_xlabel('calc')
+    axes[3].set_ylabel('CNN')
+    cbar=fig.colorbar(im,ax=axes[3])
+    cbar.formatter.set_powerlimits((0, 0))
+    axes[3].plot(np.linspace(0,10,10),np.linspace(0,10,10))
+    counts, xedges, yedges, im = axes[4].hist2d(x=Params_test[3][:,:,:].ravel()*100,y=nu_calc - nu_CNN,bins=30,range=((1,10),(-2.5,10)),cmap='inferno')
+    axes[4].title.set_text('$v$ [%]')
+    axes[4].set_xlabel('truth')
+    axes[4].set_ylabel('calc - CNN')
+    cbar=fig.colorbar(im,ax=axes[4])
+    cbar.formatter.set_powerlimits((0, 0))
+    axes[4].plot(np.linspace(0,10,10),np.linspace(0,10,10))
+    counts, xedges, yedges, im = axes[5].hist2d(x=Params_test[3][:,:,:].ravel()*100,y=nu_comb2,bins=30,range=((1,10),(0,10)),cmap='inferno')
+    axes[5].title.set_text('$v$ [%]')
+    axes[5].set_xlabel('truth')
+    axes[5].set_ylabel('combined 2')
+    cbar=fig.colorbar(im,ax=axes[5])
+    cbar.formatter.set_powerlimits((0, 0))
+    axes[5].plot(np.linspace(0,10,10),np.linspace(0,10,10))
+    plt.show()
+
+check_nu_CNN_nu_calc(label_transformed,prediction_transformed,QSM_test)
+
+p[2].ravel().shape
+#%%
+def check_nu_CNN_compared_to_OEF(Params_test,p,QSM_test):
+    nu_CNN = p[3].ravel()*100
+    nu_CNN_1 = []
+    nu_CNN_2 = []
+    nu_CNN_3 = []
+    nu_CNN_4 = []
+    nu_CNN_5 = []
+    nu_true = Params_test[3].ravel()*100
+    nu_true_1 = []
+    nu_true_2 = []
+    nu_true_3 = []
+    nu_true_4 = []
+    nu_true_5 = []
+    OEF_true = Params_test[2].ravel()
+    for i in  tqdm(range(len(OEF_true))):
+        if OEF_true[i] > 0.90:
+            nu_CNN_5.append(nu_CNN[i])
+            nu_true_5.append(nu_true[i])
+        elif OEF_true[i] <= 0.90 and OEF_true[i] > 0.80:
+            nu_CNN_4.append(nu_CNN[i])
+            nu_true_4.append(nu_true[i])
+        elif OEF_true[i] <= 0.80 and OEF_true[i] > 0.70:
+            nu_CNN_3.append(nu_CNN[i])
+            nu_true_3.append(nu_true[i])
+        elif OEF_true[i] <= 0.70 and OEF_true[i] > 0.60:
+            nu_CNN_2.append(nu_CNN[i])
+            nu_true_2.append(nu_true[i])
+        else:
+            nu_CNN_1.append(nu_CNN[i])
+            nu_true_1.append(nu_true[i])
+
+    fig, ax = plt.subplots(nrows=2, ncols=3,figsize=(20,10))
+    axes = ax.ravel()
+    counts, xedges, yedges, im = axes[0].hist2d(x=nu_true,y=nu_CNN,bins=30,range=((1,10),(0,10)),cmap='inferno')
+    axes[0].title.set_text('$v$ [%] all')
+    axes[0].set_xlabel('truth')
+    axes[0].set_ylabel('CNN')
+    cbar=fig.colorbar(im,ax=axes[0])
+    cbar.formatter.set_powerlimits((0, 0))
+    axes[0].plot(np.linspace(0,10,10),np.linspace(0,10,10))
+    counts, xedges, yedges, im = axes[1].hist2d(x=nu_true_1,y=nu_CNN_1,bins=30,range=((1,10),(0,10)),cmap='inferno')
+    axes[1].title.set_text('$v$ [%] OEF < 60 %')
+    axes[1].set_xlabel('truth')
+    axes[1].set_ylabel('CNN')
+    cbar=fig.colorbar(im,ax=axes[1])
+    cbar.formatter.set_powerlimits((0, 0))
+    axes[1].plot(np.linspace(0,10,10),np.linspace(0,10,10))
+    counts, xedges, yedges, im = axes[2].hist2d(x=nu_true_2,y=nu_CNN_2,bins=30,range=((1,10),(0,10)),cmap='inferno')
+    axes[2].title.set_text('$v$ [%] 60 % < OEF < 70 %')
+    axes[2].set_xlabel('truth')
+    axes[2].set_ylabel('CNN')
+    cbar=fig.colorbar(im,ax=axes[2])
+    cbar.formatter.set_powerlimits((0, 0))
+    axes[2].plot(np.linspace(0,10,10),np.linspace(0,10,10))
+    counts, xedges, yedges, im = axes[3].hist2d(x=nu_true_3,y=nu_CNN_3,bins=30,range=((1,10),(0,10)),cmap='inferno')
+    axes[3].title.set_text('$v$ [%] 70 % < OEF < 80 %')
+    axes[3].set_xlabel('truth')
+    axes[3].set_ylabel('CNN')
+    cbar=fig.colorbar(im,ax=axes[3])
+    cbar.formatter.set_powerlimits((0, 0))
+    axes[3].plot(np.linspace(0,10,10),np.linspace(0,10,10))
+    counts, xedges, yedges, im = axes[4].hist2d(x=nu_true_4,y=nu_CNN_4,bins=30,range=((1,10),(0,10)),cmap='inferno')
+    axes[4].title.set_text('$v$ [%] 80 % < OEF < 90 %')
+    axes[4].set_xlabel('truth')
+    axes[4].set_ylabel('CNN')
+    cbar=fig.colorbar(im,ax=axes[4])
+    cbar.formatter.set_powerlimits((0, 0))
+    axes[4].plot(np.linspace(0,10,10),np.linspace(0,10,10))
+    counts, xedges, yedges, im = axes[5].hist2d(x=nu_true_5,y=nu_CNN_5,bins=30,range=((1,10),(0,10)),cmap='inferno')
+    axes[5].title.set_text('$v$ [%] 90 % < OEF')
+    axes[5].set_xlabel('truth')
+    axes[5].set_ylabel('CNN')
+    cbar=fig.colorbar(im,ax=axes[5])
+    cbar.formatter.set_powerlimits((0, 0))
+    axes[5].plot(np.linspace(0,10,10),np.linspace(0,10,10))
+
+check_nu_CNN_compared_to_OEF(label_transformed,prediction_transformed,QSM_test)
+
+#%%
+def check_nu_calc_compared_to_OEF(Params_test,p,QSM_test):
+    nu_CNN = QQfunc.f_nu(p[2],p[4],QSM_test).ravel()*100
+    nu_CNN_1 = []
+    nu_CNN_2 = []
+    nu_CNN_3 = []
+    nu_CNN_4 = []
+    nu_CNN_5 = []
+    nu_true = Params_test[3].ravel()*100
+    nu_true_1 = []
+    nu_true_2 = []
+    nu_true_3 = []
+    nu_true_4 = []
+    nu_true_5 = []
+    OEF_true = Params_test[2].ravel()
+    for i in  tqdm(range(len(OEF_true))):
+        if OEF_true[i] > 0.90:
+            nu_CNN_5.append(nu_CNN[i])
+            nu_true_5.append(nu_true[i])
+        elif OEF_true[i] <= 0.90 and OEF_true[i] > 0.80:
+            nu_CNN_4.append(nu_CNN[i])
+            nu_true_4.append(nu_true[i])
+        elif OEF_true[i] <= 0.80 and OEF_true[i] > 0.70:
+            nu_CNN_3.append(nu_CNN[i])
+            nu_true_3.append(nu_true[i])
+        elif OEF_true[i] <= 0.70 and OEF_true[i] > 0.60:
+            nu_CNN_2.append(nu_CNN[i])
+            nu_true_2.append(nu_true[i])
+        else:
+            nu_CNN_1.append(nu_CNN[i])
+            nu_true_1.append(nu_true[i])
+
+    fig, ax = plt.subplots(nrows=2, ncols=3,figsize=(20,10))
+    axes = ax.ravel()
+    counts, xedges, yedges, im = axes[0].hist2d(x=nu_true,y=nu_CNN,bins=30,range=((1,10),(0,10)),cmap='inferno')
+    axes[0].title.set_text('$v$ [%]')
+    axes[0].set_xlabel('truth')
+    axes[0].set_ylabel('CNN')
+    cbar=fig.colorbar(im,ax=axes[0])
+    cbar.formatter.set_powerlimits((0, 0))
+    axes[0].plot(np.linspace(0,10,10),np.linspace(0,10,10))
+    counts, xedges, yedges, im = axes[1].hist2d(x=nu_true_1,y=nu_CNN_1,bins=30,range=((1,10),(0,10)),cmap='inferno')
+    axes[1].title.set_text('$v$ [%] OEF < 60 %')
+    axes[1].set_xlabel('truth')
+    axes[1].set_ylabel('CNN')
+    cbar=fig.colorbar(im,ax=axes[1])
+    cbar.formatter.set_powerlimits((0, 0))
+    axes[1].plot(np.linspace(0,10,10),np.linspace(0,10,10))
+    counts, xedges, yedges, im = axes[2].hist2d(x=nu_true_2,y=nu_CNN_2,bins=30,range=((1,10),(0,10)),cmap='inferno')
+    axes[2].title.set_text('$v$ [%] 60 % < OEF < 70 %')
+    axes[2].set_xlabel('truth')
+    axes[2].set_ylabel('CNN')
+    cbar=fig.colorbar(im,ax=axes[2])
+    cbar.formatter.set_powerlimits((0, 0))
+    axes[2].plot(np.linspace(0,10,10),np.linspace(0,10,10))
+    counts, xedges, yedges, im = axes[3].hist2d(x=nu_true_3,y=nu_CNN_3,bins=30,range=((1,10),(0,10)),cmap='inferno')
+    axes[3].title.set_text('$v$ [%] 70 % < OEF < 80 %')
+    axes[3].set_xlabel('truth')
+    axes[3].set_ylabel('CNN')
+    cbar=fig.colorbar(im,ax=axes[3])
+    cbar.formatter.set_powerlimits((0, 0))
+    axes[3].plot(np.linspace(0,10,10),np.linspace(0,10,10))
+    counts, xedges, yedges, im = axes[4].hist2d(x=nu_true_4,y=nu_CNN_4,bins=30,range=((1,10),(0,10)),cmap='inferno')
+    axes[4].title.set_text('$v$ [%] 80 % < OEF < 90 %')
+    axes[4].set_xlabel('truth')
+    axes[4].set_ylabel('CNN')
+    cbar=fig.colorbar(im,ax=axes[4])
+    cbar.formatter.set_powerlimits((0, 0))
+    axes[4].plot(np.linspace(0,10,10),np.linspace(0,10,10))
+    counts, xedges, yedges, im = axes[5].hist2d(x=nu_true_5,y=nu_CNN_5,bins=30,range=((1,10),(0,10)),cmap='inferno')
+    axes[5].title.set_text('$v$ [%] 90 % < OEF')
+    axes[5].set_xlabel('truth')
+    axes[5].set_ylabel('CNN')
+    cbar=fig.colorbar(im,ax=axes[5])
+    cbar.formatter.set_powerlimits((0, 0))
+    axes[5].plot(np.linspace(0,10,10),np.linspace(0,10,10))
+
+check_nu_calc_compared_to_OEF(label_transformed,prediction_transformed,QSM_test)
+
+#%%
+calc_nu_explicit = layers.Lambda(QQfunc.f_nu_tensor_2, name="nu_calc")([model_params.output[3],model_params.output[4],model_params.input[1]])
+
+concat_nu_calc_1 = layers.Concatenate(name = 'concat_nu_calc_1')([model_qBOLD.input,model_QSM.input,model_params.output[0],model_params.output[1],model_params.output[2],model_params.output[3],model_params.output[4],calc_nu_explicit])
+conv_nu_calc_1 = layers.Conv2D(2*n,3,padding='same',activation="tanh",name = 'conv_nu_calc_1')(concat_nu_calc_1)
+#conv_QQ_1 = layers.Conv2D(2*n,3,padding='same',activation="tanh",name = 'conv_QQ_1')(model_qBOLD.output)
+
+conv_nu_calc_2 = layers.Conv2D(4*n,3,padding='same',activation="tanh",name = 'conv_nu_calc_2')(conv_nu_calc_1)
+conv_nu_calc_3 = layers.Conv2D(8*n,3,padding='same',activation="tanh",name = 'conv_nu_calc_3')(conv_nu_calc_2)
+
+
+conv_S0_2 = layers.Conv2D(1,3,padding='same',activation="linear", name = 'S0_2')(    conv_nu_calc_3)
+conv_R2_2 = layers.Conv2D(1,3,padding='same',activation="linear", name = 'R2_2')(    conv_nu_calc_3)
+conv_Y_2 = layers.Conv2D(1,3,padding='same',activation="linear", name = 'Y_2')(     conv_nu_calc_3)
+conv_nu_2 = layers.Conv2D(1,3,padding='same',activation="linear", name = 'nu_2')(    conv_nu_calc_3)
+conv_chinb_2 = layers.Conv2D(1,3,padding='same',activation="linear", name = 'chi_nb_2')(conv_nu_calc_3)
+
+
+model_params_nu_calc = keras.Model(inputs=[input_qBOLD,input_QSM],outputs=[conv_S0_2,conv_R2_2,conv_Y_2,conv_nu_2,conv_chinb_2],name="Params_model_nu_calc")
+model_params_nu_calc.summary()
+keras.utils.plot_model(model_params_nu_calc, show_shapes=True)
+
+# %% Train Params model
+
+opt = keras.optimizers.Adam(0.001, clipnorm=1.)
+#loss=keras.losses.MeanAbsolutePercentageError()
+#loss=keras.losses.MeanSquaredLogarithmicError()
+loss=keras.losses.MeanAbsoluteError()
+#loss=tf.keras.losses.Huber()
+losses = {
+    "S0_2":loss,
+    "R2_2":loss,
+    "Y_2":loss,
+    "nu_2":loss,
+    "chi_nb_2":loss,
+}
+lossWeights = {
+    "S0_2":1.0,
+    "R2_2":1.0,
+    "Y_2":1.0,
+    "nu_2":1.0,
+    "chi_nb_2":1.0,
+}
+model_params_nu_calc.compile(
+    loss=losses,
+    loss_weights=lossWeights,
+    optimizer=opt,
+    #metrics=[tf.keras.metrics.MeanAbsolutePercentageError()],
+    #metrics=[tf.keras.metrics.MeanSquaredError()],
+    #metrics=["accuracy"],
+)
+
+#%%
+my_callbacks = [
+    tf.keras.callbacks.EarlyStopping(patience=3),
+    #tf.keras.callbacks.ModelCheckpoint(filepath='model.{epoch:02d}-{val_loss:.2f}.h5'),
+    #tf.keras.callbacks.TensorBoard(log_dir='./logs/2021_07_15-1330')
+]
+
+history_params = model_params_nu_calc.fit([qBOLD_training,QSM_training], training_list , batch_size=100, epochs=100, validation_split=0.1/0.9, callbacks=my_callbacks)
+
+
+
+#%%
+p2 = model_params_nu_calc.predict([qBOLD_test,QSM_test])
+p2[0].shape
+
+#%%
+prediction_transformed2=QQplt.translate_Params(p2)
+check_Params_transformed_hist(label_transformed,prediction_transformed2,QSM_test,'CNN_Uniform_GESFIDE_16Echoes_evaluation_with_air_deeper_nu_calc')
+
 #%%
 fig, axes = plt.subplots(nrows=2, ncols=3,figsize=(15,10))
 ax=axes.ravel()
