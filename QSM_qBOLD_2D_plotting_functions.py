@@ -364,6 +364,47 @@ def check_Params_transformed_hist(Params_test,p,filename):
     #fig=plt.figure()
     #plt.errorbar(x=xedges_Y[1:]-(xedges_Y[1]-xedges_Y[0])/2,y=np.mean(counts_Y,axis=0),yerr=np.std(counts_Y,axis=0))
     #plt.show()
+
+
+
+def check_full_confusion_matrix(Params_test,p,filename):
+    """
+    function that plots all combination of true param vs pred param as 2d histograms
+    same params should show diagonals
+    different params should show uniform results
+    in total 25 histograms
+    """
+    factor = [1,1,100,100,1000]
+    high = [1,30,98,10, 100]
+    low =  [0, 0, 0, 0,-100]
+    truth = []
+    pred = []
+    for i in range(5):
+        truth.append(Params_test[i][:,:,:].ravel()*factor[i])
+        pred.append(np.squeeze(p[i][:,:,:,:]).ravel()*factor[i])
+
+    fig, axes = plt.subplots(nrows=5, ncols=5,figsize=(20,20))
+    for i in range(5):
+        for j in range(5):
+            counts, xedges, yedges, im = axes[i,j].hist2d(x=truth[i],y=pred[j],bins=30,range=((low[i],high[i]),(low[j],high[j])),cmap='inferno')
+            #axes[i,j].title.set_text('$S_0$ [a.u.]')
+            axes[i,j].set_xlabel('truth')
+            axes[i,j].set_ylabel('prediction')
+            cbar=fig.colorbar(im,ax=axes[i,j])
+            cbar.formatter.set_powerlimits((0, 0))
+
+    plt.tight_layout()
+    plt.show()
+    fig.savefig('plots/'+filename+'.png')
+
+
+
+
+
+
+
+
+
 def check_nu_calc(Params_test,p,QSM_test):
     nu_calc = QQfunc.f_nu(p[2],p[4],QSM_test)
 
@@ -376,6 +417,10 @@ def check_nu_calc(Params_test,p,QSM_test):
     cbar.formatter.set_powerlimits((0, 0))
     axes.plot(np.linspace(0,10,10),np.linspace(0,10,10))
     plt.show()
+
+
+
+
 
 def check_Params_transformed_hist_3D(Params_test,p):
     fig, axes = plt.subplots(nrows=2, ncols=5,figsize=(15,5))
@@ -533,6 +578,8 @@ def check_Pixel(target,prediction,QSM_t,QSM_p,Number):
     ax[1].set_ylim(-0.15,0.15)
     plt.show()
     fig.savefig('plots/CNN_Uniform_GESFIDE_16Echoes_direkt_Full_check_Pixel_5.png')
+
+
 
 
 def check_Params_transformed_hist_mean(Params_test,p,filename):
