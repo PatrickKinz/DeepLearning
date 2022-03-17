@@ -306,8 +306,6 @@ model_params.summary()
 keras.utils.plot_model(model_params, show_shapes=True)
 
 
-
-
 # %% Train Params model
 
 opt = keras.optimizers.Adam(0.001, clipnorm=1.)
@@ -383,8 +381,50 @@ p[0].shape
 
 #%%
 Number=1
-label_transformed=QQplt.translate_Params(test_list)
-prediction_transformed=QQplt.translate_Params(p)
+label_transformed=QQplt.remove_air_and_CSF(QQplt.translate_Params(test_list),Seg_test)
+prediction_transformed=QQplt.remove_air_and_CSF(QQplt.translate_Params(p),Seg_test)
+label_transformed[0].shape
+QQplt.check_full_confusion_matrix(label_transformed,prediction_transformed,'confusion_test')
+
+#%%
+#label_transformed_array =np.array(label_transformed)
+#label_transformed_array.shape
+#prediction_transformed_array = np.array(prediction_transformed)
+#Cov_array = np.corrcoef(label_transformed,prediction_transformed)
+Cov_array=np.zeros((5,5))
+#print(Cov_array)
+def correlation_coef(x,y):
+    x_mean = np.mean(x)
+    y_mean = np.mean(y)
+    SPxy = np.sum((x - x_mean)*(y -y_mean))
+    SQx = np.sum((x-x_mean)*(x-x_mean))
+    SQy = np.sum((y-y_mean)*(y-y_mean))
+    return SPxy/np.sqrt(SQx*SQy)
+
+for i in range(5):
+    for j in range(5):
+        Cov_array[i,j] = correlation_coef(label_transformed[j],prediction_transformed[i])
+Cov_array_round = np.round(Cov_array,3)
+print(Cov_array_round)
+#%%
+fig, ax = plt.subplots(nrows=1, ncols=1,figsize=(7,6))
+P0 = ax.imshow(Cov_array, cmap='bwr')
+P0.set_clim(-1,1)
+ax.title.set_text('Pearson correlation coefficient')
+plt.colorbar(P0,ax=ax)
+ax.set_xticks([0,1,2,3,4])
+ax.set_xticklabels(['S$_0$ true','R$_2$ true','Y true','$v$ true','$\chi_{nb}$ true'])
+ax.set_yticks([0,1,2,3,4])
+ax.set_yticklabels(['S$_0$ pred','R$_2$ pred','Y pred','$v$ pred','$\chi_{nb}$ pred'])
+for i in range(5):
+    for j in range(5):
+        c = Cov_array_round[j,i]
+        ax.text(i, j, str(c), va='center', ha='center')
+fig.savefig('plots/'+'confusion_test_correlation_coeffs'+'.png')
+
+
+
+#%%
 QQplt.check_Params_transformed(label_transformed,prediction_transformed,Number,'CNN_Uniform_GESFIDE_16Echoes_Params_with_air')
 
 QQplt.check_Params_transformed_hist(label_transformed,prediction_transformed,'CNN_Uniform_GESFIDE_16Echoes_evaluation_with_air')

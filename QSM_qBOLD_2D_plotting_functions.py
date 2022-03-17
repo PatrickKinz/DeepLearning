@@ -110,6 +110,21 @@ def translate_Params(Params):
     chi_nb = ( 0.1-(-0.1) ) * Params[4] - 0.1 #fr
     return [S0,R2,Y,nu,chi_nb]
 
+def remove_air_and_CSF(Params,Seg):
+    #make Mask in boolean array [False, True, True, ...]
+    mask_tissue = Seg == 0 #tissue =0, air = 1, CSF =2
+    #use Mask to filer. make sure everything is a numpy array and not a list
+    output =[]
+    for i in range(len(Params)):
+        output.append(Params[i][mask_tissue])
+    return output
+
+#a= np.array([1,2,3])
+#b= a==2
+#print(b) #array[false,true,false]
+#a[b] #array[2]
+
+
 def check_Params_transformed(Params_test,p,Number,filename):
     fig, axes = plt.subplots(nrows=2, ncols=5,figsize=(15,5))
     ax = axes.ravel()
@@ -374,31 +389,30 @@ def check_full_confusion_matrix(Params_test,p,filename):
     different params should show uniform results
     in total 25 histograms
     """
-    factor = [1,1,100,100,1000]
-    high = [1,30,98,10, 100]
-    low =  [0, 0, 0, 0,-100]
+    factor = [1   ,1 ,100,100,1000]
+    high =   [1.00,30,98,10, 100]
+    #low =    [0.05, 5, 5, 1, -80]
+    low =    [0   , 0, 0,0 ,-100]
+    label = ['S$_0$','R$_2$','Y','$v$','$\chi_{nb}$']
     truth = []
     pred = []
     for i in range(5):
-        truth.append(Params_test[i][:,:,:].ravel()*factor[i])
-        pred.append(np.squeeze(p[i][:,:,:,:]).ravel()*factor[i])
+        truth.append(Params_test[i]*factor[i])
+        pred.append(p[i]*factor[i])
 
-    fig, axes = plt.subplots(nrows=5, ncols=5,figsize=(20,20))
+    fig, axes = plt.subplots(nrows=5, ncols=5,figsize=(20,18))
     for i in range(5):
         for j in range(5):
-            counts, xedges, yedges, im = axes[i,j].hist2d(x=truth[i],y=pred[j],bins=30,range=((low[i],high[i]),(low[j],high[j])),cmap='inferno')
+            counts, xedges, yedges, im = axes[i,j].hist2d(x=truth[j],y=pred[i],bins=50,range=((low[j],high[j]),(low[i],high[i])),cmap='inferno')
             #axes[i,j].title.set_text('$S_0$ [a.u.]')
-            axes[i,j].set_xlabel('truth')
-            axes[i,j].set_ylabel('prediction')
+            axes[i,j].set_xlabel(label[j] + ' truth')
+            axes[i,j].set_ylabel(label[i] + ' pred')
             cbar=fig.colorbar(im,ax=axes[i,j])
             cbar.formatter.set_powerlimits((0, 0))
 
     plt.tight_layout()
     plt.show()
     fig.savefig('plots/'+filename+'.png')
-
-
-
 
 
 
