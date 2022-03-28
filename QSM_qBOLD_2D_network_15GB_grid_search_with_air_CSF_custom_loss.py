@@ -324,15 +324,15 @@ def correlation_coef(x,y):
 
 def my_loss_fn(y_true, y_pred):
     cov_sum = 0:
-    a=1
-    b=1
+    w_diagonal = 1./5
+    w_else = 1./(25-5)
     for i in range(5):
         for j in range(5):
             if i==j:
-                cov_sum = Cov_sum + a* correlation_coef(label_transformed[j],prediction_transformed[i]) ## TODO: check dimensionality
+                cov_sum = Cov_sum - w_diagonal * correlation_coef(label_transformed[j],prediction_transformed[i]) ## TODO: check dimensionality
             else:
-                cov_sum = Cov_sum - b* correlation_coef(label_transformed[j],prediction_transformed[i])
-    return cov_sum  # Note the `axis=-1`
+                cov_sum = Cov_sum + w_else * correlation_coef(label_transformed[j],prediction_transformed[i])
+    return cov_sum  
 
 
 
