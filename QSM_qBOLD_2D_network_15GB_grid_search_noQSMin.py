@@ -83,7 +83,7 @@ model_qBOLD = keras.Model(inputs=input_qBOLD, outputs = conv_qBOLD_1, name="qBOL
 model_qBOLD.summary()
 keras.utils.plot_model(model_qBOLD, show_shapes=True)
 
-
+"""
 input_QSM = keras.Input(shape=(30,30,1), name = 'Input_QSM')
 conv_QSM_1 = keras.layers.Conv2D(n,
                   kernel_size=3,
@@ -99,8 +99,9 @@ model_QSM.summary()
 keras.utils.plot_model(model_QSM, show_shapes=True)
 
 concat_QQ_1 = layers.Concatenate(name = 'concat_QQ_1')([model_qBOLD.output,model_QSM.output])
-conv_QQ_1 = layers.Conv2D(2*n,3,padding='same',activation="tanh",name = 'conv_QQ_1')(concat_QQ_1)
-#conv_QQ_1 = layers.Conv2D(2*n,3,padding='same',activation="tanh",name = 'conv_QQ_1')(model_qBOLD.output)
+"""
+#conv_QQ_1 = layers.Conv2D(2*n,3,padding='same',activation="tanh",name = 'conv_QQ_1')(concat_QQ_1)
+conv_QQ_1 = layers.Conv2D(2*n,3,padding='same',activation="tanh",name = 'conv_QQ_1')(model_qBOLD.output)
 
 
 
@@ -111,7 +112,7 @@ conv_nu = layers.Conv2D(1,3,padding='same',activation="linear", name = 'nu')(   
 conv_chinb = layers.Conv2D(1,3,padding='same',activation="linear", name = 'chi_nb')(conv_QQ_1)
 
 
-model_params = keras.Model(inputs=[input_qBOLD,input_QSM],outputs=[conv_S0,conv_R2,conv_Y,conv_nu,conv_chinb],name="Params_model")
+model_params = keras.Model(inputs=input_qBOLD,outputs=[conv_S0,conv_R2,conv_Y,conv_nu,conv_chinb],name="Params_model")
 model_params.summary()
 keras.utils.plot_model(model_params, show_shapes=True)
 
@@ -158,19 +159,19 @@ my_callbacks = [
 
 
 
-history_params = model_params.fit([qBOLD_training,QSM_training], training_list , batch_size=100, epochs=100, validation_split=0.1/0.9, callbacks=my_callbacks)
+history_params = model_params.fit(qBOLD_training, training_list , batch_size=100, epochs=100, validation_split=0.1/0.9, callbacks=my_callbacks)
 #history_params = model_params.fit(training_Params_data, epochs=100,validation_data=val_Params_data, callbacks=my_callbacks)
 #%%
-#model_params.save("models/"+version+ "Model_2D_fully_conv_Params_before_qqbold_simple_tanh_linear.h5")
-#np.save('models/'+version+'history_params_2D_fully_conv_Params_before_qqbold_simple_tanh_linear.npy',history_params.history)
-model_params = keras.models.load_model("models/"+version+ "Model_2D_fully_conv_Params_before_qqbold_simple_tanh_linear.h5")
-model_params.summary()
-keras.utils.plot_model(model_params, show_shapes=True)
+model_params.save("models/"+version+ "Model_2D_fully_conv_Params_before_qqbold_simple_tanh_linear_no_QSM.h5")
+np.save('models/'+version+'history_params_2D_fully_conv_Params_before_qqbold_simple_tanh_linear_no_QSM.npy',history_params.history)
+#model_params = keras.models.load_model("models/"+version+ "Model_2D_fully_conv_Params_before_qqbold_simple_tanh_linear.h5")
+#model_params.summary()
+#keras.utils.plot_model(model_params, show_shapes=True)
 
 #%%
 
 
-test_scores = model_params.evaluate([qBOLD_test,QSM_test], test_list, verbose=2)
+test_scores = model_params.evaluate(qBOLD_test, test_list, verbose=2)
 print("Test loss:", test_scores[0])
 print("Test accuracy:", test_scores[1])
 #%%
@@ -186,18 +187,28 @@ QQplt.plot_loss(history_params,'chi_nb_')
 # %%
 #model_params = keras.models.load_model("models/"+version+ "Model_2D_Params_before_qqbold.h5")
 #model_params.summary()
-p = model_params.predict([qBOLD_test,QSM_test])
+p = model_params.predict(qBOLD_test)
 p[0].shape
 
 #%%
 Number=2
 label_transformed=QQplt.translate_Params(test_list)
 prediction_transformed=QQplt.translate_Params(p)
-QQplt.check_Params_transformed(label_transformed,prediction_transformed,Number,'CNN_Uniform_GESFIDE_16Echoes_Params')
+QQplt.check_Params_transformed(label_transformed,prediction_transformed,Number,'CNN_Uniform_GESFIDE_16Echoes_Params_no_QSM')
 
-QQplt.check_Params_transformed_hist(label_transformed,prediction_transformed,'CNN_Uniform_GESFIDE_16Echoes_evaluation')
+QQplt.check_Params_transformed_hist(label_transformed,prediction_transformed,'CNN_Uniform_GESFIDE_16Echoes_evaluation_no_QSM')
 # this created the ISMRM 2022 plot for Gesfide
+
+label_transformed[0].shape
+prediction_transformed[0].shape
+for i in range(len(prediction_transformed)):
+    label_transformed[i] = label_transformed[i].flatten()
+    prediction_transformed[i] = prediction_transformed[i].flatten()
+prediction_transformed[0].shape
+label_transformed[0].shape
 # add full histogram plot here
+QQplt.check_full_confusion_matrix(label_transformed,prediction_transformed,'confusion_test_no_QSM')
+
 
 QQplt.check_nu_calc(label_transformed,prediction_transformed,QSM_test)
 QQplt.check_nu_calc_QSM_noiseless(label_transformed,prediction_transformed,test_list)
