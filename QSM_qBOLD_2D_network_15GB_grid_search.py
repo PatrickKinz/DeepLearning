@@ -192,10 +192,21 @@ p[0].shape
 #%%
 Number=2
 label_transformed=QQplt.translate_Params(test_list)
+label_transformed[0].shape
 prediction_transformed=QQplt.translate_Params(p)
-QQplt.check_Params_transformed(label_transformed,prediction_transformed,Number,'CNN_Uniform_GESFIDE_16Echoes_Params')
+prediction_transformed[0].shape
+QQplt.check_Params_transformed(label_transformed,prediction_transformed,Number,'CNN_Uniform_GESFIDE_16Echoes_Params_rerun')
 
-QQplt.check_Params_transformed_hist(label_transformed,prediction_transformed,'CNN_Uniform_GESFIDE_16Echoes_evaluation')
+QQplt.check_Params_transformed_hist(label_transformed,prediction_transformed,'CNN_Uniform_GESFIDE_16Echoes_evaluation_rerun')
+label_transformed_reshaped=[]
+prediction_transformed_reshaped=[]
+for i in range(len(prediction_transformed)):
+    label_transformed_reshaped.append(np.ravel(label_transformed[i]))
+    prediction_transformed_reshaped.append(np.ravel(prediction_transformed[i]))
+label_transformed_reshaped[0].shape
+prediction_transformed_reshaped[1].shape
+QQplt.check_full_confusion_matrix(label_transformed_reshaped,prediction_transformed_reshaped,'CNN_Uniform_GESFIDE_16Echoes_confusion_test')
+#%%
 
 QQplt.check_nu_calc(label_transformed,prediction_transformed,QSM_test)
 QQplt.check_nu_calc_QSM_noiseless(label_transformed,prediction_transformed,test_list)
