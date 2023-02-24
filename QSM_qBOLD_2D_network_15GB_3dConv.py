@@ -60,55 +60,119 @@ version = "no_air_1Pnoise_15GB/"
 
 # %% Network
 
-input_qBOLD = keras.Input(shape=(30,30,16), name = 'Input_qBOLD')
+input_qBOLD = keras.Input(shape=(30,30,16,1), name = 'Input_qBOLD')
 
 input_qBOLD.shape
 input_qBOLD.dtype
 
 n=16
-
-conv_qBOLD_1 = keras.layers.Conv2D(n,
-                  kernel_size = 3,
+pad_qBOLD_1 = keras.layers.ZeroPadding3D(padding=(1,1,0))(input_qBOLD)
+conv_qBOLD_1 = keras.layers.Conv3D(n,
+                  kernel_size = (3,3,5),
                   strides=1,
-                  padding='same',
+                  padding='valid',
                   dilation_rate=1,
                   activation='tanh',
-                  name='conv_qBOLD_1')(input_qBOLD)
+                  name='conv_qBOLD_1')(pad_qBOLD_1)
+norm_qBOLD_1 = layers.BatchNormalization()(conv_qBOLD_1)
+drop_qBOLD_1 = layers.SpatialDropout3D(0.1)(norm_qBOLD_1)
 
+pad_qBOLD_2 = keras.layers.ZeroPadding3D(padding=(1,1,0))(drop_qBOLD_1)
+conv_qBOLD_2 = keras.layers.Conv3D(2*n,
+                  kernel_size = (3,3,5),
+                  strides=1,
+                  padding='valid',
+                  dilation_rate=1,
+                  activation='tanh',
+                  name='conv_qBOLD_2')(pad_qBOLD_2)
+norm_qBOLD_2 = layers.BatchNormalization()(conv_qBOLD_2)
+drop_qBOLD_2 = layers.SpatialDropout3D(0.1)(norm_qBOLD_2)
 
+pad_qBOLD_3 = keras.layers.ZeroPadding3D(padding=(1,1,0))(conv_qBOLD_2)
+conv_qBOLD_3 = keras.layers.Conv3D(4*n,
+                  kernel_size = (3,3,5),
+                  strides=1,
+                  padding='valid',
+                  dilation_rate=1,
+                  activation='tanh',
+                  name='conv_qBOLD_3')(pad_qBOLD_3)
+norm_qBOLD_3 = layers.BatchNormalization()(conv_qBOLD_3)
+drop_qBOLD_3 = layers.SpatialDropout3D(0.1)(norm_qBOLD_3)
 
+pad_qBOLD_4 = keras.layers.ZeroPadding3D(padding=(1,1,0))(conv_qBOLD_3)
+conv_qBOLD_4 = keras.layers.Conv3D(8*n,
+                  kernel_size = (3,3,4),
+                  strides=1,
+                  padding='valid',
+                  dilation_rate=1,
+                  activation='tanh',
+                  name='conv_qBOLD_4')(pad_qBOLD_4)
+norm_qBOLD_4 = layers.BatchNormalization()(conv_qBOLD_4)
+drop_qBOLD_4 = layers.SpatialDropout3D(0.1)(norm_qBOLD_4)
+reshape_qBOLD = keras.layers.Reshape((30,30,128))(drop_qBOLD_4)
 
-
-model_qBOLD = keras.Model(inputs=input_qBOLD, outputs = conv_qBOLD_1, name="qBOLD model")
+model_qBOLD = keras.Model(inputs=input_qBOLD, outputs = reshape_qBOLD, name="qBOLD model")
 model_qBOLD.summary()
 keras.utils.plot_model(model_qBOLD, show_shapes=True)
 
-
+#%%
 input_QSM = keras.Input(shape=(30,30,1), name = 'Input_QSM')
-conv_QSM_1 = keras.layers.Conv2D(n,
+conv_QSM_1 = keras.layers.Conv2D(n/2,
                   kernel_size=3,
                   strides=(1),
                   padding='same',
                   dilation_rate=1,
                   activation='tanh',
                   name='conv_QSM_1')(input_QSM)
+norm_QSM_1 = layers.BatchNormalization()(conv_QSM_1)
+drop_QSM_1 = layers.SpatialDropout2D(0.1)(norm_QSM_1)
+
+conv_QSM_2 = keras.layers.Conv2D(n,
+                  kernel_size=3,
+                  strides=(1),
+                  padding='same',
+                  dilation_rate=1,
+                  activation='tanh',
+                  name='conv_QSM_2')(drop_QSM_1)
+norm_QSM_2 = layers.BatchNormalization()(conv_QSM_2)
+drop_QSM_2 = layers.SpatialDropout2D(0.1)(norm_QSM_2)
+
+conv_QSM_3 = keras.layers.Conv2D(2*n,
+                  kernel_size=3,
+                  strides=(1),
+                  padding='same',
+                  dilation_rate=1,
+                  activation='tanh',
+                  name='conv_QSM_3')(drop_QSM_2)
+norm_QSM_3 = layers.BatchNormalization()(conv_QSM_3)
+drop_QSM_3 = layers.SpatialDropout2D(0.1)(norm_QSM_3)
 
 
-model_QSM = keras.Model(inputs=input_QSM, outputs = conv_QSM_1, name="QSM model")
+
+model_QSM = keras.Model(inputs=input_QSM, outputs = drop_QSM_3, name="QSM model")
 model_QSM.summary()
 keras.utils.plot_model(model_QSM, show_shapes=True)
-
+#%%
 concat_QQ_1 = layers.Concatenate(name = 'concat_QQ_1')([model_qBOLD.output,model_QSM.output])
 conv_QQ_1 = layers.Conv2D(2*n,3,padding='same',activation="tanh",name = 'conv_QQ_1')(concat_QQ_1)
-#conv_QQ_1 = layers.Conv2D(2*n,3,padding='same',activation="tanh",name = 'conv_QQ_1')(model_qBOLD.output)
+norm_QQ_1 = layers.BatchNormalization()(conv_QQ_1)
+drop_QQ_1 = layers.SpatialDropout2D(0.1)(norm_QQ_1)
+
+conv_QQ_2 = layers.Conv2D(4*n,3,padding='same',activation="tanh",name = 'conv_QQ_2')(drop_QQ_1)
+norm_QQ_2 = layers.BatchNormalization()(conv_QQ_2)
+drop_QQ_2 = layers.SpatialDropout2D(0.1)(norm_QQ_2)
+
+conv_QQ_3 = layers.Conv2D(8*n,3,padding='same',activation="tanh",name = 'conv_QQ_3')(drop_QQ_2)
+norm_QQ_3 = layers.BatchNormalization()(conv_QQ_3)
+drop_QQ_3 = layers.SpatialDropout2D(0.1)(norm_QQ_3)
 
 
 
-conv_S0 = layers.Conv2D(1,3,padding='same',activation="linear", name = 'S0')(    conv_QQ_1)
-conv_R2 = layers.Conv2D(1,3,padding='same',activation="linear", name = 'R2')(    conv_QQ_1)
-conv_Y = layers.Conv2D(1,3,padding='same',activation="linear", name = 'Y')(     conv_QQ_1)
-conv_nu = layers.Conv2D(1,3,padding='same',activation="linear", name = 'nu')(    conv_QQ_1)
-conv_chinb = layers.Conv2D(1,3,padding='same',activation="linear", name = 'chi_nb')(conv_QQ_1)
+conv_S0 = layers.Conv2D(1,3,padding='same',activation="linear", name = 'S0')(    drop_QQ_3)
+conv_R2 = layers.Conv2D(1,3,padding='same',activation="linear", name = 'R2')(    drop_QQ_3)
+conv_Y = layers.Conv2D(1,3,padding='same',activation="linear", name = 'Y')(     drop_QQ_3)
+conv_nu = layers.Conv2D(1,3,padding='same',activation="linear", name = 'nu')(    drop_QQ_3)
+conv_chinb = layers.Conv2D(1,3,padding='same',activation="linear", name = 'chi_nb')(drop_QQ_3)
 
 
 model_params = keras.Model(inputs=[input_qBOLD,input_QSM],outputs=[conv_S0,conv_R2,conv_Y,conv_nu,conv_chinb],name="Params_model")
@@ -161,9 +225,9 @@ my_callbacks = [
 history_params = model_params.fit([qBOLD_training,QSM_training], training_list , batch_size=100, epochs=100, validation_split=0.1/0.9, callbacks=my_callbacks)
 #history_params = model_params.fit(training_Params_data, epochs=100,validation_data=val_Params_data, callbacks=my_callbacks)
 #%%
-#model_params.save("models/"+version+ "Model_2D_fully_conv_Params_before_qqbold_simple_tanh_linear.h5")
-#np.save('models/'+version+'history_params_2D_fully_conv_Params_before_qqbold_simple_tanh_linear.npy',history_params.history)
-model_params = keras.models.load_model("models/"+version+ "Model_2D_fully_conv_Params_before_qqbold_simple_tanh_linear.h5")
+#model_params.save("models/"+version+ "Model_2D_image_3D_conv_norm_drop.h5")
+#np.save('models/'+version+'history_Model_2D_image_3D_conv_norm_drop.npy',history_params.history)
+model_params = keras.models.load_model("models/"+version+ "Model_2D_image_3D_conv_norm_drop.h5")
 model_params.summary()
 keras.utils.plot_model(model_params, show_shapes=True)
 
@@ -192,14 +256,24 @@ p[0].shape
 #%%
 Number=2
 label_transformed=QQplt.translate_Params(test_list)
-label_transformed[0].shape
 prediction_transformed=QQplt.translate_Params(p)
-prediction_transformed[0].shape
-QQplt.check_Params_transformed(label_transformed,prediction_transformed,Number,'CNN_Uniform_GESFIDE_16Echoes_Params_rerun')
+QQplt.check_Params_transformed(label_transformed,prediction_transformed,Number,'CNN_Uniform_GESFIDE_16Echoes_Params_3d_drop_norm')
 
-QQplt.check_Params_transformed_hist(label_transformed,prediction_transformed,'CNN_Uniform_GESFIDE_16Echoes_evaluation')
+QQplt.check_Params_transformed_hist(label_transformed,prediction_transformed,'CNN_Uniform_GESFIDE_16Echoes_evaluation_3D_drop_norm')
 # this created the ISMRM 2022 plot for Gesfide
 # add full histogram plot here
+label_transformed[0].shape
+prediction_transformed[0].shape
+for i in range(len(prediction_transformed)):
+    label_transformed[i] = label_transformed[i].flatten()
+    prediction_transformed[i] = prediction_transformed[i].flatten()
+prediction_transformed[0].shape
+label_transformed[0].shape
+# add full histogram plot here
+QQplt.check_full_confusion_matrix(label_transformed,prediction_transformed,'confusion_test_3d_drop_norm_redone')
+QQplt.check_correlation_coef(label_transformed,prediction_transformed,'confusion_test_correlation_coeffs_3d_drop_norm_redone')
+
+
 
 QQplt.check_nu_calc(label_transformed,prediction_transformed,QSM_test)
 QQplt.check_nu_calc_QSM_noiseless(label_transformed,prediction_transformed,test_list)

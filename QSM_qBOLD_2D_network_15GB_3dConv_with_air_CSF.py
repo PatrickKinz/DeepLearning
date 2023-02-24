@@ -30,7 +30,7 @@ import h5py
 
 #np.savez("../Brain_Phantom/Patches/NumpyArchiv",Params_training=Params_training,Params_test=Params_test,qBOLD_training=qBOLD_training,qBOLD_test=qBOLD_test,QSM_training=QSM_training,QSM_test=QSM_test)
 
-Dataset_train=np.load("../Brain_Phantom/Patches_no_air_big/15GB_1Pnoise_train_val.npz")
+Dataset_train=np.load("../Brain_Phantom/Patches_with_air_big/15GB_1Pnoise_train_val.npz")
 S0_train=Dataset_train['S0']
 S0_train.shape
 R2_train=Dataset_train['R2']
@@ -39,11 +39,11 @@ nu_train=Dataset_train['nu']
 chi_nb_train=Dataset_train['chi_nb']
 qBOLD_training=Dataset_train['qBOLD']
 QSM_training=Dataset_train['QSM']
-
+Seg_training=Dataset_train['Seg']
 
 training_list = [S0_train,R2_train,Y_train,nu_train,chi_nb_train]
 #%%
-Dataset_test=np.load("../Brain_Phantom/Patches_no_air_big/15GB_1Pnoise_test.npz")
+Dataset_test=np.load("../Brain_Phantom/Patches_with_air_big/15GB_1Pnoise_test.npz")
 S0_test=Dataset_test['S0']
 S0_test.shape
 R2_test=Dataset_test['R2']
@@ -52,63 +52,231 @@ nu_test=Dataset_test['nu']
 chi_nb_test=Dataset_test['chi_nb']
 qBOLD_test=Dataset_test['qBOLD']
 QSM_test=Dataset_test['QSM']
+Seg_test=Dataset_test['Seg']
 
 test_list = [S0_test,R2_test,Y_test,nu_test,chi_nb_test]
 
 
-version = "no_air_1Pnoise_15GB/"
+version = "with_air_1Pnoise_15GB/"
 
 # %% Network
 
-input_qBOLD = keras.Input(shape=(30,30,16), name = 'Input_qBOLD')
+input_qBOLD = keras.Input(shape=(30,30,16,1), name = 'Input_qBOLD')
 
 input_qBOLD.shape
 input_qBOLD.dtype
 
 n=16
-
-conv_qBOLD_1 = keras.layers.Conv2D(n,
-                  kernel_size = 3,
+pad_qBOLD_1 = keras.layers.ZeroPadding3D(padding=(1,1,0))(input_qBOLD)
+conv_qBOLD_1 = keras.layers.Conv3D(n,
+                  kernel_size = (3,3,5),
                   strides=1,
-                  padding='same',
+                  padding='valid',
                   dilation_rate=1,
                   activation='tanh',
-                  name='conv_qBOLD_1')(input_qBOLD)
+                  name='conv_qBOLD_1')(pad_qBOLD_1)
+norm_qBOLD_1 = layers.BatchNormalization()(conv_qBOLD_1)
+drop_qBOLD_1 = layers.SpatialDropout3D(0.1)(norm_qBOLD_1)
 
+pad_qBOLD_2 = keras.layers.ZeroPadding3D(padding=(1,1,0))(drop_qBOLD_1)
+conv_qBOLD_2 = keras.layers.Conv3D(2*n,
+                  kernel_size = (3,3,5),
+                  strides=1,
+                  padding='valid',
+                  dilation_rate=1,
+                  activation='tanh',
+                  name='conv_qBOLD_2')(pad_qBOLD_2)
+norm_qBOLD_2 = layers.BatchNormalization()(conv_qBOLD_2)
+drop_qBOLD_2 = layers.SpatialDropout3D(0.1)(norm_qBOLD_2)
 
+pad_qBOLD_3 = keras.layers.ZeroPadding3D(padding=(1,1,0))(conv_qBOLD_2)
+conv_qBOLD_3 = keras.layers.Conv3D(4*n,
+                  kernel_size = (3,3,5),
+                  strides=1,
+                  padding='valid',
+                  dilation_rate=1,
+                  activation='tanh',
+                  name='conv_qBOLD_3')(pad_qBOLD_3)
+norm_qBOLD_3 = layers.BatchNormalization()(conv_qBOLD_3)
+drop_qBOLD_3 = layers.SpatialDropout3D(0.1)(norm_qBOLD_3)
 
+pad_qBOLD_4 = keras.layers.ZeroPadding3D(padding=(1,1,0))(conv_qBOLD_3)
+conv_qBOLD_4 = keras.layers.Conv3D(8*n,
+                  kernel_size = (3,3,4),
+                  strides=1,
+                  padding='valid',
+                  dilation_rate=1,
+                  activation='tanh',
+                  name='conv_qBOLD_4')(pad_qBOLD_4)
+norm_qBOLD_4 = layers.BatchNormalization()(conv_qBOLD_4)
+drop_qBOLD_4 = layers.SpatialDropout3D(0.1)(norm_qBOLD_4)
+reshape_qBOLD = keras.layers.Reshape((30,30,128))(drop_qBOLD_4)
 
-
-model_qBOLD = keras.Model(inputs=input_qBOLD, outputs = conv_qBOLD_1, name="qBOLD model")
+model_qBOLD = keras.Model(inputs=input_qBOLD, outputs = reshape_qBOLD, name="qBOLD model")
 model_qBOLD.summary()
 keras.utils.plot_model(model_qBOLD, show_shapes=True)
 
-
+#%%
 input_QSM = keras.Input(shape=(30,30,1), name = 'Input_QSM')
-conv_QSM_1 = keras.layers.Conv2D(n,
+conv_QSM_1 = keras.layers.Conv2D(n/2,
                   kernel_size=3,
                   strides=(1),
                   padding='same',
                   dilation_rate=1,
                   activation='tanh',
                   name='conv_QSM_1')(input_QSM)
+norm_QSM_1 = layers.BatchNormalization()(conv_QSM_1)
+drop_QSM_1 = layers.SpatialDropout2D(0.1)(norm_QSM_1)
+
+conv_QSM_2 = keras.layers.Conv2D(n,
+                  kernel_size=3,
+                  strides=(1),
+                  padding='same',
+                  dilation_rate=1,
+                  activation='tanh',
+                  name='conv_QSM_2')(drop_QSM_1)
+norm_QSM_2 = layers.BatchNormalization()(conv_QSM_2)
+drop_QSM_2 = layers.SpatialDropout2D(0.1)(norm_QSM_2)
+
+conv_QSM_3 = keras.layers.Conv2D(2*n,
+                  kernel_size=3,
+                  strides=(1),
+                  padding='same',
+                  dilation_rate=1,
+                  activation='tanh',
+                  name='conv_QSM_3')(drop_QSM_2)
+norm_QSM_3 = layers.BatchNormalization()(conv_QSM_3)
+drop_QSM_3 = layers.SpatialDropout2D(0.1)(norm_QSM_3)
 
 
-model_QSM = keras.Model(inputs=input_QSM, outputs = conv_QSM_1, name="QSM model")
+
+model_QSM = keras.Model(inputs=input_QSM, outputs = drop_QSM_3, name="QSM model")
 model_QSM.summary()
 keras.utils.plot_model(model_QSM, show_shapes=True)
 
-concat_QQ_1 = layers.Concatenate(name = 'concat_QQ_1')([model_qBOLD.output,model_QSM.output])
+#%% Network Segmentation
+reshape_qBOLD_for_Seg = keras.layers.Reshape((30,30,16))(input_qBOLD)
+conv_Seg_1 = keras.layers.Conv2D(8,
+                kernel_size=3,
+                strides=(1),
+                padding='same',
+                dilation_rate=1,
+                activation='tanh',
+                name='conv_Seg_1')(reshape_qBOLD_for_Seg)
+
+norm_Seg_1 = layers.BatchNormalization()(conv_Seg_1)
+drop_Seg_1 = layers.SpatialDropout2D(0.1)(norm_Seg_1)
+
+conv_Seg_2 = keras.layers.Conv2D(16,
+                kernel_size=3,
+                strides=(1),
+                padding='same',
+                dilation_rate=1,
+                activation='tanh',
+                name='conv_Seg_2')(drop_Seg_1)
+
+norm_Seg_2 = layers.BatchNormalization()(conv_Seg_2)
+drop_Seg_2 = layers.SpatialDropout2D(0.1)(norm_Seg_2)
+
+conv_Seg_3 = keras.layers.Conv2D(32,
+                kernel_size=3,
+                strides=(1),
+                padding='same',
+                dilation_rate=1,
+                activation='tanh',
+                name='conv_Seg_3')(drop_Seg_2)
+
+norm_Seg_3 = layers.BatchNormalization()(conv_Seg_3)
+drop_Seg_3 = layers.SpatialDropout2D(0.1)(norm_Seg_3)
+
+n_types = 3
+conv_Seg_4 = keras.layers.Conv2D(n_types,
+                kernel_size=3,
+                strides=(1),
+                padding='same',
+                dilation_rate=1,
+                activation='relu',
+                name='conv_Seg_4')(drop_Seg_3)
+
+model_Seg = keras.Model(inputs=input_qBOLD, outputs = conv_Seg_4, name="Seg_model")
+model_Seg.summary()
+keras.utils.plot_model(model_Seg, show_shapes=True)
+
+opt = keras.optimizers.Adam(0.001, clipnorm=1.)
+model_Seg.compile(optimizer=opt,loss=keras.losses.SparseCategoricalCrossentropy())
+
+my_callbacks = [
+    tf.keras.callbacks.EarlyStopping(patience=3),
+    #tf.keras.callbacks.ModelCheckpoint(filepath='model.{epoch:02d}-{val_loss:.2f}.h5'),
+    #tf.keras.callbacks.TensorBoard(log_dir='./logs/2021_07_15-1330')
+]
+
+#%%
+history_Seg = model_Seg.fit(qBOLD_training, Seg_training , batch_size=100, epochs=100, validation_split=0.1/0.9, callbacks=my_callbacks)
+
+
+#%%
+p_Seg = model_Seg.predict(qBOLD_test)
+p_Seg[0].shape
+
+def check_Seg(Seg_true,Seg_pred,Number): #target prediction
+    fig, axes = plt.subplots(nrows=1, ncols=5,figsize=(15,5))
+    ax = axes.ravel()
+
+    P0=ax[0].imshow(Seg_true[Number,:,:], cmap='gray')
+    ax[0].title.set_text('true')
+    #plt.colorbar(P0,ax=ax[0])
+    P0.set_clim(.0,2)
+
+    P1=ax[1].imshow(Seg_pred[Number,:,:,0], cmap='gray')
+    ax[1].title.set_text('tissue')
+    #plt.colorbar(P1,ax=ax[1])
+    P1.set_clim(.0,1)
+
+    P2=ax[2].imshow(Seg_pred[Number,:,:,1], cmap='gray')
+    ax[2].title.set_text('air')
+    #plt.colorbar(P2,ax=ax[2])
+    P2.set_clim(.0,1)
+
+    P3=ax[3].imshow(Seg_pred[Number,:,:,2], cmap='gray')
+    ax[3].title.set_text('CSF')
+    #plt.colorbar(P3,ax=ax[3])
+    P3.set_clim(.0,1)
+
+    seg_pred = tf.math.argmax(Seg_pred[Number,:,:,:], axis=-1)
+    P4=ax[4].imshow(seg_pred, cmap='gray')
+    ax[4].title.set_text('Pred')
+    #plt.colorbar(P3,ax=ax[3])
+    P4.set_clim(.0,2)
+    plt.show()
+
+check_Seg(Seg_test,p_Seg,1)
+check_Seg(Seg_test,p_Seg,2)
+check_Seg(Seg_test,p_Seg,3)
+check_Seg(Seg_test,p_Seg,9)
+check_Seg(Seg_test,p_Seg,19)
+
+#%%
+concat_QQ_1 = layers.Concatenate(name = 'concat_QQ_1')([model_qBOLD.output,model_QSM.output,model_Seg.output])
 conv_QQ_1 = layers.Conv2D(2*n,3,padding='same',activation="tanh",name = 'conv_QQ_1')(concat_QQ_1)
-#conv_QQ_1 = layers.Conv2D(2*n,3,padding='same',activation="tanh",name = 'conv_QQ_1')(model_qBOLD.output)
+norm_QQ_1 = layers.BatchNormalization()(conv_QQ_1)
+drop_QQ_1 = layers.SpatialDropout2D(0.1)(norm_QQ_1)
+
+conv_QQ_2 = layers.Conv2D(4*n,3,padding='same',activation="tanh",name = 'conv_QQ_2')(drop_QQ_1)
+norm_QQ_2 = layers.BatchNormalization()(conv_QQ_2)
+drop_QQ_2 = layers.SpatialDropout2D(0.1)(norm_QQ_2)
+
+conv_QQ_3 = layers.Conv2D(8*n,3,padding='same',activation="tanh",name = 'conv_QQ_3')(drop_QQ_2)
+norm_QQ_3 = layers.BatchNormalization()(conv_QQ_3)
+drop_QQ_3 = layers.SpatialDropout2D(0.1)(norm_QQ_3)
 
 
 
-conv_S0 = layers.Conv2D(1,3,padding='same',activation="linear", name = 'S0')(    conv_QQ_1)
-conv_R2 = layers.Conv2D(1,3,padding='same',activation="linear", name = 'R2')(    conv_QQ_1)
-conv_Y = layers.Conv2D(1,3,padding='same',activation="linear", name = 'Y')(     conv_QQ_1)
-conv_nu = layers.Conv2D(1,3,padding='same',activation="linear", name = 'nu')(    conv_QQ_1)
-conv_chinb = layers.Conv2D(1,3,padding='same',activation="linear", name = 'chi_nb')(conv_QQ_1)
+conv_S0 = layers.Conv2D(1,3,padding='same',activation="linear", name = 'S0')(    drop_QQ_3)
+conv_R2 = layers.Conv2D(1,3,padding='same',activation="linear", name = 'R2')(    drop_QQ_3)
+conv_Y = layers.Conv2D(1,3,padding='same',activation="linear", name = 'Y')(     drop_QQ_3)
+conv_nu = layers.Conv2D(1,3,padding='same',activation="linear", name = 'nu')(    drop_QQ_3)
+conv_chinb = layers.Conv2D(1,3,padding='same',activation="linear", name = 'chi_nb')(drop_QQ_3)
 
 
 model_params = keras.Model(inputs=[input_qBOLD,input_QSM],outputs=[conv_S0,conv_R2,conv_Y,conv_nu,conv_chinb],name="Params_model")
@@ -157,15 +325,18 @@ my_callbacks = [
 
 
 
+for l in model_Seg.layers:
+    l.trainable=False
+
 
 history_params = model_params.fit([qBOLD_training,QSM_training], training_list , batch_size=100, epochs=100, validation_split=0.1/0.9, callbacks=my_callbacks)
 #history_params = model_params.fit(training_Params_data, epochs=100,validation_data=val_Params_data, callbacks=my_callbacks)
 #%%
-#model_params.save("models/"+version+ "Model_2D_fully_conv_Params_before_qqbold_simple_tanh_linear.h5")
-#np.save('models/'+version+'history_params_2D_fully_conv_Params_before_qqbold_simple_tanh_linear.npy',history_params.history)
-model_params = keras.models.load_model("models/"+version+ "Model_2D_fully_conv_Params_before_qqbold_simple_tanh_linear.h5")
-model_params.summary()
-keras.utils.plot_model(model_params, show_shapes=True)
+model_params.save("models/"+version+ "Model_2D_image_3D_conv_norm_drop_with_air_CSF.h5")
+np.save('models/'+version+'history_Model_2D_image_3D_conv_norm_drop_with_air_CSF.npy',history_params.history)
+#model_params = keras.models.load_model("models/"+version+ "Model_2D_fully_conv_Params_before_qqbold_simple_tanh_linear.h5")
+#model_params.summary()
+#keras.utils.plot_model(model_params, show_shapes=True)
 
 #%%
 
@@ -192,14 +363,21 @@ p[0].shape
 #%%
 Number=2
 label_transformed=QQplt.translate_Params(test_list)
-label_transformed[0].shape
 prediction_transformed=QQplt.translate_Params(p)
-prediction_transformed[0].shape
-QQplt.check_Params_transformed(label_transformed,prediction_transformed,Number,'CNN_Uniform_GESFIDE_16Echoes_Params_rerun')
+QQplt.check_Params_transformed(label_transformed,prediction_transformed,Number,'CNN_Uniform_GESFIDE_16Echoes_Params')
 
 QQplt.check_Params_transformed_hist(label_transformed,prediction_transformed,'CNN_Uniform_GESFIDE_16Echoes_evaluation')
 # this created the ISMRM 2022 plot for Gesfide
 # add full histogram plot here
+label_transformed[0].shape
+prediction_transformed[0].shape
+for i in range(len(prediction_transformed)):
+    label_transformed[i] = label_transformed[i].flatten()
+    prediction_transformed[i] = prediction_transformed[i].flatten()
+prediction_transformed[0].shape
+label_transformed[0].shape
+# add full histogram plot here
+QQplt.check_full_confusion_matrix(label_transformed,prediction_transformed,'confusion_test_3d_drop_norm')
 
 QQplt.check_nu_calc(label_transformed,prediction_transformed,QSM_test)
 QQplt.check_nu_calc_QSM_noiseless(label_transformed,prediction_transformed,test_list)

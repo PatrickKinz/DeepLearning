@@ -414,6 +414,42 @@ def check_full_confusion_matrix(Params_test,p,filename):
     plt.show()
     fig.savefig('plots/'+filename+'.png')
 
+def correlation_coef(x,y):
+    x_mean = np.mean(x)
+    y_mean = np.mean(y)
+    SPxy = np.sum((x - x_mean)*(y -y_mean))
+    SQx = np.sum((x-x_mean)*(x-x_mean))
+    SQy = np.sum((y-y_mean)*(y-y_mean))
+    return SPxy/np.sqrt(SQx*SQy)
+
+def check_correlation_coef(label_transformed,prediction_transformed,filename):
+#%%
+#label_transformed_array =np.array(label_transformed)
+#label_transformed_array.shape
+#prediction_transformed_array = np.array(prediction_transformed)
+#Cov_array = np.corrcoef(label_transformed,prediction_transformed)
+    Cov_array=np.zeros((5,5))
+#print(Cov_array)
+    for i in range(5):
+        for j in range(5):
+            Cov_array[i,j] = correlation_coef(label_transformed[j],prediction_transformed[i])
+    Cov_array_round = np.round(Cov_array,3)
+#    print(Cov_array_round)
+
+    fig, ax = plt.subplots(nrows=1, ncols=1,figsize=(7,6))
+    P0 = ax.imshow(Cov_array, cmap='bwr')
+    P0.set_clim(-1,1)
+    ax.title.set_text('Pearson correlation coefficient')
+    plt.colorbar(P0,ax=ax)
+    ax.set_xticks([0,1,2,3,4])
+    ax.set_xticklabels(['S$_0$ true','R$_2$ true','Y true','$v$ true','$\chi_{nb}$ true'])
+    ax.set_yticks([0,1,2,3,4])
+    ax.set_yticklabels(['S$_0$ pred','R$_2$ pred','Y pred','$v$ pred','$\chi_{nb}$ pred'])
+    for i in range(5):
+        for j in range(5):
+            c = Cov_array_round[j,i]
+            ax.text(i, j, str(c), va='center', ha='center')
+    fig.savefig('plots/'+ filename +'.png')
 
 
 
