@@ -193,10 +193,17 @@ print(n)
 n=find_number_of_patches(seg,30,15)
 print(n)
 #%%
+def S_T1(S0,T1,alpha,TR):
+    epsilon = np.exp(-TR/T1)
+    return S0*np.sin(alpha)*(1-epsilon)/(1-np.cos(alpha)*epsilon)
+
+
+#%%
 
 def create_images(seg,archive_name,multiples,noise,step_size=10):
-    t=np.array([2.72,8.80,13.00,17.20,21.40,25.81,29.81,33.84,37.84])/1000
-
+    t=np.array([2.57,6.60,10.60,14.63,18.63,22.66,28.00,33.00])/1000
+    TR = 53.0/1000
+    alpha = np.array([8,18,30])*2*np.pi/360
 
     nda_seg = sitk.GetArrayViewFromImage(seg)
     patch_size = 30 # pixel
@@ -208,8 +215,9 @@ def create_images(seg,archive_name,multiples,noise,step_size=10):
     Y_array = np.zeros((n*multiples,patch_size,patch_size,1),dtype=np.float32)
     nu_array = np.zeros((n*multiples,patch_size,patch_size,1),dtype=np.float32)
     chi_nb_array = np.zeros((n*multiples,patch_size,patch_size,1),dtype=np.float32)
-    qBOLD_array  = np.zeros((n*multiples,patch_size,patch_size,len(t)),dtype=np.float32)
-    QSM_array    = np.zeros((n*multiples,patch_size,patch_size,1),dtype=np.float32)
+    T1_array = np.zeros((n*multiples,patch_size,patch_size,1),dtype=np.float32)
+    qBOLD_array  = np.zeros((n*multiples,patch_size,patch_size,3*len(t)),dtype=np.float32)
+    QSM_array    = np.zeros((n*multiples,patch_size,patch_size,3),dtype=np.float32)
     
     count = 0
 
@@ -228,11 +236,12 @@ def create_images(seg,archive_name,multiples,noise,step_size=10):
 
                 for j in range(multiples):
                     #a=0.5*np.ones(N_tissues) #S0 # TODO: Allow some variation
-                    a=uniform(0.2,1.0,N_tissues)
+                    a=uniform(0.5,1.0,N_tissues)
                     b=random(N_tissues) #R2
                     c=random(N_tissues) #Y
                     d=random(N_tissues) #nu
                     e=random(N_tissues) #chi_nb
+                    f=random(N_tissues) #T1
 
                     """ Calculate qBOLD and QSM for each tissue type """
                     S0 = a   #S0     = 1000 + 200 * randn(N).T
@@ -241,9 +250,13 @@ def create_images(seg,archive_name,multiples,noise,step_size=10):
                     Y  = (SaO2 - 0.01) * c + 0.01   #from 1% to 98%
                     nu = (0.1 - 0.001) * d + 0.001  #from 0.1% to 10%
                     chi_nb = ( 0.1-(-0.1) ) * e - 0.1 #from -0.1 ppb to 0.1 ppb
-                    
+                    T1 = (1.500-0.500)*f + 0.500 #from 500ms to 1.5s
+
                     """calculate qBOLD and QSM """
-                    qBOLD = QQ.f_qBOLD_GRE(S0,R2,Y,nu,chi_nb,t)
+                    qBOLD8 = QQ.f_qBOLD_GRE(S_T1(S0,T1,alpha[0],TR),R2,Y,nu,chi_nb,t)
+                    qBOLD18 = QQ.f_qBOLD_GRE(S_T1(S0,T1,alpha[1],TR),R2,Y,nu,chi_nb,t)
+                    qBOLD30 = QQ.f_qBOLD_GRE(S_T1(S0,T1,alpha[2],TR),R2,Y,nu,chi_nb,t)
+                    qBOLD = np.concatenate((qBOLD8,qBOLD18,qBOLD30),axis=1)
                     if np.any(np.isinf(qBOLD)):
                         count +=1
                         continue
@@ -259,7 +272,7 @@ def create_images(seg,archive_name,multiples,noise,step_size=10):
                             nu_array[index[count],xx,yy,:] = d[type]
                             chi_nb_array[index[count],xx,yy,:] = e[type]
                             qBOLD_array[index[count],xx,yy,:]  = qBOLD[type,:]
-                            QSM_array[index[count],xx,yy,0]    = QSM[type]
+                            QSM_array[index[count],xx,yy,:]    = QSM[type]
 
                     if noise:
                         qBOLD_array[index[count],:,:,:] = qBOLD_array[index[count],:,:,:] + rng.normal(loc=0,scale=1./100,size=qBOLD_array[index[count],:,:,:].shape)
@@ -267,13 +280,13 @@ def create_images(seg,archive_name,multiples,noise,step_size=10):
 
                     count += 1
 
-    np.savez(archive_name,qBOLD=qBOLD_array,QSM=QSM_array,S0=S0_array,R2=R2_array,Y=Y_array,nu=nu_array,chi_nb=chi_nb_array)
+    np.savez(archive_name,qBOLD=qBOLD_array,QSM=QSM_array,S0=S0_array,R2=R2_array,Y=Y_array,nu=nu_array,chi_nb=chi_nb_array,T1=T1_array)
 
 #%%
 #Create train and test data separately by adjusting multiples, for example 9 for train and 1 for test
-create_images(seg,"../Brain_Phantom/Patches_no_air_big_GRE_9/15GB_1Pnoise_train_val",multiples=2,noise=True)
+create_images(seg,"../Brain_Phantom/Patches_no_air_big_triple_GRE/15GB_1Pnoise_train_val",multiples=2,noise=True)
 #%%
-create_images(seg,"../Brain_Phantom/Patches_no_air_big_GRE_9/15GB_1Pnoise_test",multiples=1,noise=True,step_size=15)
+create_images(seg,"../Brain_Phantom/Patches_no_air_big_triple_GRE/15GB_1Pnoise_test",multiples=1,noise=True,step_size=15)
 #create_images(seg,"",multiples=9,noise=False)
 #create_images(seg,"",multiples=1,noise=False)
 
