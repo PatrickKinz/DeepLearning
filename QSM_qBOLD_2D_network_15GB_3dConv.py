@@ -248,8 +248,8 @@ QQplt.plot_loss(history_params,'chi_nb_')
 
 
 # %%
-#model_params = keras.models.load_model("models/"+version+ "Model_2D_Params_before_qqbold.h5")
-#model_params.summary()
+model_params = keras.models.load_model("models/"+version+ "Model_2D_image_3D_conv_norm_drop.h5")
+model_params.summary()
 p = model_params.predict([qBOLD_test,QSM_test])
 p[0].shape
 
@@ -270,10 +270,18 @@ for i in range(len(prediction_transformed)):
 prediction_transformed[0].shape
 label_transformed[0].shape
 # add full histogram plot here
-QQplt.check_full_confusion_matrix(label_transformed,prediction_transformed,'confusion_test_3d_drop_norm_redone')
-QQplt.check_correlation_coef(label_transformed,prediction_transformed,'confusion_test_correlation_coeffs_3d_drop_norm_redone')
+#%%
+#QQplt.check_full_confusion_matrix(label_transformed,prediction_transformed,'confusion_test_GESFIDE_1Pnoise_3d_drop_norm')
+#QQplt.check_full_confusion_matrix_autonormed(label_transformed,prediction_transformed,'confusion_test_GESFIDE_1Pnoise_3d_drop_norm_autonorm')
+QQplt.check_full_confusion_matrix_normed(label_transformed,prediction_transformed,'confusion_test_GESFIDE_1Pnoise_3d_drop_norm_normed')
+#QQplt.check_correlation_coef(label_transformed,prediction_transformed,'correlation_coeffs_GESFIDE_1Pnoise_3d_drop_norm')
+#%%
+QQplt.check_Yv_confusion_matrix_normed(label_transformed[2:4],prediction_transformed[2:4],'confusion_test_Yv_GESFIDE_1Pnoise_3d_drop_norm_normed')
+#%%
+QQplt.check_full_confusion_matrix_normed(label_transformed,label_transformed,'confusion_test_GESFIDE_1Pnoise_label_only_normed')
 
 
+#%%
 
 QQplt.check_nu_calc(label_transformed,prediction_transformed,QSM_test)
 QQplt.check_nu_calc_QSM_noiseless(label_transformed,prediction_transformed,test_list)

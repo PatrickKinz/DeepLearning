@@ -1,3 +1,5 @@
+
+
 # %% import modules
 import tensorflow as tf
 print(tf.config.list_physical_devices('GPU'))
@@ -30,7 +32,7 @@ import h5py
 
 #np.savez("../Brain_Phantom/Patches/NumpyArchiv",Params_training=Params_training,Params_test=Params_test,qBOLD_training=qBOLD_training,qBOLD_test=qBOLD_test,QSM_training=QSM_training,QSM_test=QSM_test)
 
-Dataset_train=np.load("../Brain_Phantom/Patches_no_air_big_GESSE/15GB_0Pnoise_train_val.npz")
+Dataset_train=np.load("../Brain_Phantom/Patches_no_air_big_GESSE/15GB_1Pnoise_train_val.npz")
 S0_train=Dataset_train['S0']
 S0_train.shape
 R2_train=Dataset_train['R2']
@@ -43,7 +45,7 @@ QSM_training=Dataset_train['QSM']
 
 training_list = [S0_train,R2_train,Y_train,nu_train,chi_nb_train]
 #%%
-Dataset_test=np.load("../Brain_Phantom/Patches_no_air_big_GESSE/15GB_0Pnoise_test.npz")
+Dataset_test=np.load("../Brain_Phantom/Patches_no_air_big_GESSE/15GB_1Pnoise_test.npz")
 S0_test=Dataset_test['S0']
 S0_test.shape
 R2_test=Dataset_test['R2']
@@ -56,7 +58,7 @@ QSM_test=Dataset_test['QSM']
 test_list = [S0_test,R2_test,Y_test,nu_test,chi_nb_test]
 
 
-version = "no_air_0Pnoise_15GB_GESSE/"
+version = "no_air_1Pnoise_15GB_GESSE/"
 
 # %% Network
 
@@ -132,8 +134,9 @@ drop_qBOLD_4 = layers.SpatialDropout3D(0.1)(norm_qBOLD_4)
 # norm_qBOLD_6 = layers.BatchNormalization()(conv_qBOLD_6)
 # drop_qBOLD_6 = layers.SpatialDropout3D(0.1)(norm_qBOLD_6)
 
-
-reshape_qBOLD = keras.layers.Reshape((30,30,128))(drop_qBOLD_4)
+newdim = tuple([x for x in drop_qBOLD_4.shape.as_list() if x != 1 and x is not None])
+reshape_qBOLD = keras.layers.Reshape(newdim) (drop_qBOLD_4) #should remove dimensions of size 1
+#reshape_qBOLD = keras.layers.Reshape((30,30,128))(drop_qBOLD_4)
 
 model_qBOLD = keras.Model(inputs=input_qBOLD, outputs = reshape_qBOLD, name="qBOLD model")
 model_qBOLD.summary()
@@ -249,11 +252,11 @@ my_callbacks = [
 history_params = model_params.fit([qBOLD_training,QSM_training], training_list , batch_size=100, epochs=100, validation_split=0.1/0.9, callbacks=my_callbacks)
 #history_params = model_params.fit(training_Params_data, epochs=100,validation_data=val_Params_data, callbacks=my_callbacks)
 #%%
-model_params.save("models/"+version+ "Model_2D_image_GESSE_0Pnoise_3D_conv_norm_drop_n16.h5")
-np.save('models/'+version+'history_Model_2D_image_GESSE_0Pnoise_3D_conv_norm_drop_n16.npy',history_params.history)
-#model_params = keras.models.load_model("models/"+version+ "Model_2D_image_GESSE_3D_conv_norm_drop.h5")
-model_params.summary()
-keras.utils.plot_model(model_params, show_shapes=True)
+model_params.save("models/"+version+ "Model_2D_image_GESSE_3D_conv_norm_drop_n16_var_reshape.h5")
+np.save('models/'+version+'history_Model_2D_image_GESSE_3D_conv_norm_drop_n16_var_reshape.npy',history_params.history)
+#model_params = keras.models.load_model("models/"+version+ "Model_2D_image_GESSE_3D_conv_norm_drop_n16.h5")
+#model_params.summary()
+#keras.utils.plot_model(model_params, show_shapes=True)
 
 #%%
 
@@ -278,13 +281,14 @@ QQplt.plot_loss(history_params,'chi_nb_')
 p = model_params.predict([qBOLD_test,QSM_test])
 p[0].shape
 
-#%%
-Number=2
 label_transformed=QQplt.translate_Params(test_list)
 prediction_transformed=QQplt.translate_Params(p)
-QQplt.check_Params_transformed(label_transformed,prediction_transformed,Number,'CNN_Uniform_GESSE_0Pnoise_32Echoes_Params_3d_drop_norm_n16')
 
-QQplt.check_Params_transformed_hist(label_transformed,prediction_transformed,'CNN_Uniform_GESSE_0Pnoise_32Echoes_evaluation_3D_drop_norm_n16')
+#%%
+Number=25
+QQplt.check_Params_transformed(label_transformed,prediction_transformed,Number,'CNN_Uniform_GESSE_1Pnoise_32Echoes_Params_3d_drop_norm_n16_var_reshape')
+#%%
+QQplt.check_Params_transformed_hist(label_transformed,prediction_transformed,'CNN_Uniform_GESSE_1Pnoise_32Echoes_evaluation_3D_drop_norm_n16_var_reshape')
 # this created the ISMRM 2022 plot for Gesfide
 # add full histogram plot here
 label_transformed[0].shape
@@ -295,6 +299,11 @@ for i in range(len(prediction_transformed)):
 prediction_transformed[0].shape
 label_transformed[0].shape
 # add full histogram plot here
-QQplt.check_full_confusion_matrix(label_transformed,prediction_transformed,'confusion_test_GESSE_0Pnoise_3d_drop_norm_n16')
-QQplt.check_correlation_coef(label_transformed,prediction_transformed,'confusion_test_GESSE_0Pnoise_correlation_coeffs_3d_drop_norm_n16')
+#QQplt.check_full_confusion_matrix(label_transformed,prediction_transformed,'confusion_test_GESSE_1Pnoise_3d_drop_norm_n16')
+#QQplt.check_full_confusion_matrix_autonormed(label_transformed,prediction_transformed,'confusion_test_GESSE_1Pnoise_3d_drop_norm_n16_autonormed')
+QQplt.check_full_confusion_matrix_normed(label_transformed,prediction_transformed,'confusion_test_GESSE_1Pnoise_3d_drop_norm_n16_normed_var_reshape')
 
+#QQplt.check_correlation_coef(label_transformed,prediction_transformed,'confusion_test_GESSE_1Pnoise_correlation_coeffs_3d_drop_norm_n16')
+
+
+# %%

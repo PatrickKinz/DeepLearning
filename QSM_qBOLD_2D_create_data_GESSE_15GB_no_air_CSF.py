@@ -276,11 +276,11 @@ create_images(seg,"../Brain_Phantom/Patches_no_air_big_GESSE/15GB_0Pnoise_test",
 
 #%%
 """ Loop over saved slices """
-    """ Add noise to signal slices, repeat K times (total number K*?*M*N)"""
+""" Add noise to signal slices, repeat K times (total number K*?*M*N)"""
 
-    """ Norm signal slices """
+""" Norm signal slices """
 
-    """ Save noisy normed slices """
+""" Save noisy normed slices """
 
 def make_archive(filenames,archive_name,noise):
     Dataset=np.load("../Brain_Phantom/Patches_no_air_big/NumpyArchives/NumpyArchiv_000000.npz")
@@ -307,3 +307,4 @@ def make_archive(filenames,archive_name,noise):
             QSM[i,:,:,:]   = Dataset['QSM']
 
     np.savez(archive_name,qBOLD=qBOLD,QSM=QSM,S0=S0,R2=R2,Y=Y,nu=nu,chi_nb=chi_nb)
+    return 0
