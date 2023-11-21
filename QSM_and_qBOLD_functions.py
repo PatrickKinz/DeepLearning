@@ -45,6 +45,31 @@ def f_qBOLD(S0, R2, Y, nu, chi_nb, t,TE = 40./1000 ):
         output[:,i] = S0 * np.exp(-R2*t[i] -nu * f_hyper(dw * (t[i]-TE) ) )
     return output
 
+def f_qBOLD_GRE(S0, R2, Y, nu, chi_nb, t ):
+    output = np.zeros((len(S0),len(t)))
+    Hct = 0.357
+    # Blood Hb volume fraction
+    psi_Hb = Hct*0.34/1.335
+    # Susceptibility of oxyhemoglobin in ppm
+    chi_oHb = -0.813
+    # Susceptibility of plasma in ppm
+    chi_p = -0.0377
+    # Susceptibility of fully oxygenated blood in ppm
+    chi_ba = psi_Hb*chi_oHb + (1-psi_Hb)*chi_p
+    #print('chi_ba', chi_ba)
+    #CF = gamma *B0
+    gamma = 267.513 #MHz/T
+    B0 = 3 #T
+    delta_chi0 = 4*np.pi*0.273 #in ppm
+    delta_chi0*Hct
+    dw = 1./3 * gamma * B0* (Hct * delta_chi0 * (1-Y) + chi_ba - chi_nb )
+    #print('dw', dw, dw.shape)
+    #FID
+    for i in range(len(t)):
+        output[:,i] = S0 * np.exp(-R2*t[i] -nu * f_hyper(dw *     t[i] ) )
+    return output
+
+
 def f_qBOLD_GESSE(S0, R2, Y, nu, chi_nb, t,TE = 47./1000 ):
     output = np.zeros((len(S0),len(t)))
     #TE = 47./1000   #tenth echo

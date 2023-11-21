@@ -68,6 +68,8 @@ def create_whole_brain(M):
         #currently assuming same parameter distribution for all tissue types
         N_tissues=17 #Air and Abnormal_WM not included
         t=np.array([29,31,33,35,37,39,41,43,45,47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83,85,87,89,91])/1000
+        #t=np.array([2.72,8.80,13.00,17.20,21.40])/1000
+        #t=np.array([2.72,8.80,13.00,17.20,21.40,25.81,29.81,3384,37.84])/1000
 
         a=0.5*np.ones(N_tissues) #S0
         b=random(N_tissues) #R2

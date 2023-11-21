@@ -59,7 +59,6 @@ test_list = [S0_test,R2_test,Y_test,nu_test,chi_nb_test]
 
 version = "with_air_1Pnoise_15GB/"
 
-
 # %% Look at data
 def check_data(qBOLD,QSM,S0,R2,Y,nu,chi_nb,Seg,Number): #target prediction
     fig, axes = plt.subplots(nrows=2, ncols=6,figsize=(15,5))
@@ -384,6 +383,7 @@ Number=1
 label_transformed=QQplt.remove_air_and_CSF(QQplt.translate_Params(test_list),Seg_test)
 prediction_transformed=QQplt.remove_air_and_CSF(QQplt.translate_Params(p),Seg_test)
 label_transformed[0].shape
+prediction_transformed[0].shape
 QQplt.check_full_confusion_matrix(label_transformed,prediction_transformed,'confusion_test')
 
 #%%
