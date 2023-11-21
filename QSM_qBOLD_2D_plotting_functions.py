@@ -3,7 +3,8 @@ from tensorflow import keras
 import numpy as np
 import matplotlib.pyplot as plt
 import QSM_and_qBOLD_functions as QQfunc
-
+from matplotlib import colors
+from matplotlib.figure import Figure
 
 #%%
 def plot_loss(history, keyword):
@@ -413,6 +414,97 @@ def check_full_confusion_matrix(Params_test,p,filename):
     plt.tight_layout()
     plt.show()
     fig.savefig('plots/'+filename+'.png')
+def check_full_confusion_matrix_normed(Params_test,p,filename):
+    """
+    function that plots all combination of true param vs pred param as 2d histograms
+    same params should show diagonals
+    different params should show uniform results
+    in total 25 histograms
+    """
+    factor = [1   ,1 ,100,100,1000]
+    high =   [1.00,30,98,10, 100]
+    #low =    [0.05, 5, 5, 1, -80]
+    low =    [0   , 0, 0,0 ,-100]
+    label = ['S$_0$ [a.u.]','R$_2$ [Hz]','Y [%]','$v$ [%]','$\chi_{nb} [ppb]$']
+    truth = []
+    pred = []
+    for i in range(5):
+        truth.append(Params_test[i]*factor[i])
+        pred.append(p[i]*factor[i])
+    truth_histograms = []
+    for i in range(5):
+        hist, edges = np.histogram(truth[i],bins=50,range=(low[i],high[i]))
+        truth_histograms.append(hist)
+
+    fig = Figure(figsize=(16,13),constrained_layout=True)
+    axes = fig.subplots(nrows=5, ncols=5)
+    for i in range(5):
+        for j in range(5):
+            counts, xedges, yedges = np.histogram2d(x=truth[j],y=pred[i],bins=50,range=((low[j],high[j]),(low[i],high[i])))
+            for k in range(50):
+                for l in range(50):
+                    counts[k,l]= 100*counts[k,l]/(truth_histograms[j][k]+1)
+            im = axes[i,j].pcolormesh(xedges,yedges,counts.T,cmap='inferno',norm=colors.LogNorm(vmin=1, vmax=100))
+            #axes[i,j].set_xlabel(label[j] + ' truth')
+            #axes[i,j].set_ylabel(label[i] + ' pred')
+            #cbar=fig.colorbar(im,ax=axes[i,j])
+            #cbar.formatter.set_powerlimits((0, 0))
+    cbar=fig.colorbar(im,ax=axes[:,4],shrink=0.6)
+    cbar.ax.tick_params(labelsize='xx-large')
+    for i in range(5):
+        axes[i,0].set_ylabel(label[i] + ' pred', fontsize='xx-large')
+    for j in range(5):
+        axes[4,j].set_xlabel(label[j] + ' truth', fontsize='xx-large')
+    #plt.tight_layout()
+    plt.show()
+    fig.savefig('plots/'+filename+'.png')
+
+
+def check_Yv_confusion_matrix_normed(Params_test,p,filename):
+    """
+    function that plots all combination of true param vs pred param as 2d histograms
+    same params should show diagonals
+    different params should show uniform results
+    in total 25 histograms
+    """
+    factor = [100,100]
+    high =   [98,10]
+    #low =    [0.05, 5, 5, 1, -80]
+    low =    [ 0,0 ]
+    label = ['Y [%]','$v$ [%]']
+    truth = []
+    pred = []
+    for i in range(2):
+        truth.append(Params_test[i]*factor[i])
+        pred.append(p[i]*factor[i])
+    truth_histograms = []
+    for i in range(2):
+        hist, edges = np.histogram(truth[i],bins=50,range=(low[i],high[i]))
+        truth_histograms.append(hist)
+
+    fig = Figure(figsize=(8,7),constrained_layout=True)
+    axes = fig.subplots(nrows=2, ncols=2)
+    for i in range(2):
+        for j in range(2):
+            counts, xedges, yedges = np.histogram2d(x=truth[j],y=pred[i],bins=50,range=((low[j],high[j]),(low[i],high[i])))
+            for k in range(50):
+                for l in range(50):
+                    counts[k,l]= 100*counts[k,l]/(truth_histograms[j][k]+1)
+            im = axes[i,j].pcolormesh(xedges,yedges,counts.T,cmap='inferno',norm=colors.LogNorm(vmin=1, vmax=100))
+            #axes[i,j].set_xlabel(label[j] + ' truth')
+            #axes[i,j].set_ylabel(label[i] + ' pred')
+            #cbar=fig.colorbar(im,ax=axes[i,j])
+            #cbar.formatter.set_powerlimits((0, 0))
+    cbar=fig.colorbar(im,ax=axes[:,1],shrink=0.6)
+    cbar.ax.tick_params(labelsize='xx-large')
+    for i in range(2):
+        axes[i,0].set_ylabel(label[i] + ' pred', fontsize='xx-large')
+    for j in range(2):
+        axes[1,j].set_xlabel(label[j] + ' truth', fontsize='xx-large')
+    #plt.tight_layout()
+    plt.show()
+    fig.savefig('plots/'+filename+'.png')
+
 
 def correlation_coef(x,y):
     x_mean = np.mean(x)

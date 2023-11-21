@@ -192,10 +192,8 @@ p[0].shape
 #%%
 Number=2
 label_transformed=QQplt.translate_Params(test_list)
-label_transformed[0].shape
 prediction_transformed=QQplt.translate_Params(p)
-prediction_transformed[0].shape
-QQplt.check_Params_transformed(label_transformed,prediction_transformed,Number,'CNN_Uniform_GESFIDE_16Echoes_Params_rerun')
+QQplt.check_Params_transformed(label_transformed,prediction_transformed,Number,'CNN_Uniform_GESFIDE_16Echoes_Params')
 
 QQplt.check_Params_transformed_hist(label_transformed,prediction_transformed,'CNN_Uniform_GESFIDE_16Echoes_evaluation')
 # this created the ISMRM 2022 plot for Gesfide
