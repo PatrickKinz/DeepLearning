@@ -16,7 +16,7 @@ Function to test creating 2D data of Signal with S0, T2 and T2S
 """
 
 #seg = sitk.ReadImage("C:/Users/pk24/Documents/Programming/Brain_Phantom/Segmentation.TIF")
-seg = sitk.ReadImage("../Brain_Phantom/Segmentation.TIF")
+seg = sitk.ReadImage("D:/Brain_Phantom/Segmentation.TIF")
 print(seg.GetSize())
 print(seg.GetOrigin())
 print(seg.GetSpacing())
@@ -201,8 +201,9 @@ def S_T1(S0,T1,alpha,TR):
 #%%
 
 def create_images(seg,archive_name,multiples,noise,step_size=10):
-    t=np.array([2.57,6.60,10.60,14.63,18.63,22.66,28.00,33.00])/1000
-    TR = 53.0/1000
+    #t=np.array([2.57,6.60,10.60,14.63,18.63,22.66,28.00,33.00])/1000 #first attempt at triple GRE
+    t=np.array([2.5,6.50,10.50,14.50,18.50,22.50])/1000 #Neurology data
+    TR = 45.0/1000
     alpha = np.array([8,18,30])*2*np.pi/360
 
     nda_seg = sitk.GetArrayViewFromImage(seg)
@@ -217,6 +218,9 @@ def create_images(seg,archive_name,multiples,noise,step_size=10):
     chi_nb_array = np.zeros((n*multiples,patch_size,patch_size,1),dtype=np.float32)
     T1_array = np.zeros((n*multiples,patch_size,patch_size,1),dtype=np.float32)
     qBOLD_array  = np.zeros((n*multiples,patch_size,patch_size,3*len(t)),dtype=np.float32)
+    qBOLD8_array  = np.zeros((n*multiples,patch_size,patch_size,len(t)),dtype=np.float32)
+    qBOLD18_array  = np.zeros((n*multiples,patch_size,patch_size,len(t)),dtype=np.float32)
+    qBOLD30_array  = np.zeros((n*multiples,patch_size,patch_size,len(t)),dtype=np.float32)
     QSM_array    = np.zeros((n*multiples,patch_size,patch_size,3),dtype=np.float32)
     
     count = 0
@@ -271,58 +275,34 @@ def create_images(seg,archive_name,multiples,noise,step_size=10):
                             Y_array[index[count],xx,yy,:] = c[type]
                             nu_array[index[count],xx,yy,:] = d[type]
                             chi_nb_array[index[count],xx,yy,:] = e[type]
+                            T1_array[index[count],xx,yy,:] = f[type]
                             qBOLD_array[index[count],xx,yy,:]  = qBOLD[type,:]
+                            qBOLD8_array[index[count],xx,yy,:]  = qBOLD8[type,:]
+                            qBOLD18_array[index[count],xx,yy,:]  = qBOLD18[type,:]
+                            qBOLD30_array[index[count],xx,yy,:]  = qBOLD30[type,:]
                             QSM_array[index[count],xx,yy,:]    = QSM[type]
 
                     if noise:
                         qBOLD_array[index[count],:,:,:] = qBOLD_array[index[count],:,:,:] + rng.normal(loc=0,scale=1./100,size=qBOLD_array[index[count],:,:,:].shape)
+                        qBOLD8_array[index[count],:,:,:] = qBOLD8_array[index[count],:,:,:] + rng.normal(loc=0,scale=1./100,size=qBOLD8_array[index[count],:,:,:].shape)
+                        qBOLD18_array[index[count],:,:,:] = qBOLD18_array[index[count],:,:,:] + rng.normal(loc=0,scale=1./100,size=qBOLD18_array[index[count],:,:,:].shape)
+                        qBOLD30_array[index[count],:,:,:] = qBOLD30_array[index[count],:,:,:] + rng.normal(loc=0,scale=1./100,size=qBOLD30_array[index[count],:,:,:].shape)
                         QSM_array[index[count],:,:,:]   = QSM_array[index[count],:,:,:]   + rng.normal(loc=0,scale=0.1/100,size=QSM_array[index[count],:,:,:].shape)
 
                     count += 1
 
-    np.savez(archive_name,qBOLD=qBOLD_array,QSM=QSM_array,S0=S0_array,R2=R2_array,Y=Y_array,nu=nu_array,chi_nb=chi_nb_array,T1=T1_array)
+    np.savez(archive_name,qBOLD=qBOLD_array,qBOLD8=qBOLD8_array,qBOLD18=qBOLD18_array,qBOLD30=qBOLD30_array,QSM=QSM_array,S0=S0_array,R2=R2_array,Y=Y_array,nu=nu_array,chi_nb=chi_nb_array,T1=T1_array)
 
 #%%
 #Create train and test data separately by adjusting multiples, for example 9 for train and 1 for test
-create_images(seg,"../Brain_Phantom/Patches_no_air_big_triple_GRE/15GB_1Pnoise_train_val",multiples=2,noise=True)
+create_images(seg,"D:/Brain_Phantom/Patches_no_air_big_triple_GRE_Neuro/15GB_1Pnoise_train_val",multiples=2,noise=True)
 #%%
-create_images(seg,"../Brain_Phantom/Patches_no_air_big_triple_GRE/15GB_1Pnoise_test",multiples=1,noise=True,step_size=15)
+create_images(seg,"D:/Brain_Phantom/Patches_no_air_big_triple_GRE_Neuro/15GB_1Pnoise_test",multiples=1,noise=True,step_size=15)
 #create_images(seg,"",multiples=9,noise=False)
 #create_images(seg,"",multiples=1,noise=False)
 
 #42441    *    (5 + 16 + 1)        *30*30    *  4                                  *20
 #patches *(params + qBOLD + QSM) *image size *float32 = 3.361.327.200 = 3.35GB     67.226.544.000
 
-#%%
-""" Loop over saved slices """
-""" Add noise to signal slices, repeat K times (total number K*?*M*N)"""
 
-""" Norm signal slices """
-
-""" Save noisy normed slices """
-
-def make_archive(filenames,archive_name,noise):
-    Dataset=np.load("../Brain_Phantom/Patches_no_air_big/NumpyArchives/NumpyArchiv_000000.npz")
-    qBOLD=np.zeros((len(filenames),Dataset['qBOLD'].shape[1],Dataset['qBOLD'].shape[2],Dataset['qBOLD'].shape[3]   ),dtype=np.float32)
-    QSM=np.zeros((len(filenames),Dataset['QSM'].shape[1],Dataset['QSM'].shape[2],Dataset['QSM'].shape[3]   ),dtype=np.float32)
-    S0=np.zeros((len(filenames),Dataset['Params'].shape[1],Dataset['Params'].shape[2]  ),dtype=np.float32)
-    R2=np.zeros((len(filenames),Dataset['Params'].shape[1],Dataset['Params'].shape[2]   ),dtype=np.float32)
-    Y=np.zeros((len(filenames),Dataset['Params'].shape[1],Dataset['Params'].shape[2]   ),dtype=np.float32)
-    nu=np.zeros((len(filenames),Dataset['Params'].shape[1],Dataset['Params'].shape[2]   ),dtype=np.float32)
-    chi_nb=np.zeros((len(filenames),Dataset['Params'].shape[1],Dataset['Params'].shape[2]   ),dtype=np.float32)
-
-    for i in tqdm(range(len(filenames))):
-        Dataset=np.load("../Brain_Phantom/Patches_no_air_big/NumpyArchives/NumpyArchiv_" + filenames_train_shuffled[i])
-        S0[i,:,:]=Dataset['Params'][:,:,:,0]
-        R2[i,:,:]=Dataset['Params'][:,:,:,1]
-        Y[i,:,:]=Dataset['Params'][:,:,:,2]
-        nu[i,:,:]=Dataset['Params'][:,:,:,3]
-        chi_nb[i,:,:]=Dataset['Params'][:,:,:,4]
-        if noise:
-            qBOLD[i,:,:,:] = Dataset['qBOLD'] + rng.normal(loc=0,scale=1./100,size=Dataset['qBOLD'].shape)
-            QSM[i,:,:,:]   = Dataset['QSM']   + rng.normal(loc=0,scale=0.1/100,size=Dataset['QSM'].shape)
-        else:
-            qBOLD[i,:,:,:] = Dataset['qBOLD']
-            QSM[i,:,:,:]   = Dataset['QSM']
-
-    np.savez(archive_name,qBOLD=qBOLD,QSM=QSM,S0=S0,R2=R2,Y=Y,nu=nu,chi_nb=chi_nb)
+# %%

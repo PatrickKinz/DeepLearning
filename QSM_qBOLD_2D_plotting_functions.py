@@ -111,6 +111,18 @@ def translate_Params(Params):
     chi_nb = ( 0.1-(-0.1) ) * Params[4] - 0.1 #fr
     return [S0,R2,Y,nu,chi_nb]
 
+def translate_Params_T1(Params):
+    S0 = Params[0]   #S0     = 1000 + 200 * randn(N).T
+    R2 = (30-1) * Params[1] + 1  #from 1 to 30
+    SaO2 = 0.98
+    Y  = (SaO2 - 0.01) * Params[2] + 0.01   #from 1% to 98%
+    nu = (0.1 - 0.001) * Params[3] + 0.001  #from 0.1% to 10%
+    chi_nb = ( 0.1-(-0.1) ) * Params[4] - 0.1 #fr
+    T1 = (1.500-0.500)*Params[5] + 0.500
+    return [S0,R2,Y,nu,chi_nb,T1]
+
+
+
 def remove_air_and_CSF(Params,Seg):
     #make Mask in boolean array [False, True, True, ...]
     mask_tissue = Seg == 0 #tissue =0, air = 1, CSF =2
@@ -458,6 +470,53 @@ def check_full_confusion_matrix_normed(Params_test,p,filename):
     #plt.tight_layout()
     plt.show()
     fig.savefig('plots/'+filename+'.png')
+
+
+def check_full_confusion_matrix_normed_T1(Params_test,p,filename):
+    """
+    function that plots all combination of true param vs pred param as 2d histograms
+    same params should show diagonals
+    different params should show uniform results
+    in total 25 histograms
+    """
+    factor = [1   ,1 ,100,100,1000,1]
+    high =   [1.00,30,98,10, 100,1.5]
+    #low =    [0.05, 5, 5, 1, -80]
+    low =    [0   , 0, 0,0 ,-100,0.5]
+    label = ['S$_0$ [a.u.]','R$_2$ [Hz]','Y [%]','$v$ [%]','$\chi_{nb} [ppb]$',"T1 [s]"]
+    truth = []
+    pred = []
+    for i in range(6):
+        truth.append(Params_test[i]*factor[i])
+        pred.append(p[i]*factor[i])
+    truth_histograms = []
+    for i in range(6):
+        hist, edges = np.histogram(truth[i],bins=50,range=(low[i],high[i]))
+        truth_histograms.append(hist)
+
+    fig = Figure(figsize=(16,13),constrained_layout=True)
+    axes = fig.subplots(nrows=6, ncols=6)
+    for i in range(6):
+        for j in range(6):
+            counts, xedges, yedges = np.histogram2d(x=truth[j],y=pred[i],bins=50,range=((low[j],high[j]),(low[i],high[i])))
+            for k in range(50):
+                for l in range(50):
+                    counts[k,l]= 100*counts[k,l]/(truth_histograms[j][k]+1)
+            im = axes[i,j].pcolormesh(xedges,yedges,counts.T,cmap='inferno',norm=colors.LogNorm(vmin=1, vmax=100))
+            #axes[i,j].set_xlabel(label[j] + ' truth')
+            #axes[i,j].set_ylabel(label[i] + ' pred')
+            #cbar=fig.colorbar(im,ax=axes[i,j])
+            #cbar.formatter.set_powerlimits((0, 0))
+    cbar=fig.colorbar(im,ax=axes[:,5],shrink=0.6)
+    cbar.ax.tick_params(labelsize='xx-large')
+    for i in range(6):
+        axes[i,0].set_ylabel(label[i] + ' pred', fontsize='xx-large')
+    for j in range(6):
+        axes[5,j].set_xlabel(label[j] + ' truth', fontsize='xx-large')
+    #plt.tight_layout()
+    plt.show()
+    fig.savefig('plots/'+filename+'.png')
+
 
 
 def check_Yv_confusion_matrix_normed(Params_test,p,filename):
