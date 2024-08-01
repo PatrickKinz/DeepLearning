@@ -1,3 +1,4 @@
+#%%
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.random import rand, randn, random, uniform
@@ -15,7 +16,7 @@ Function to test creating 2D data of Signal with S0, T2 and T2S
 """
 
 #seg = sitk.ReadImage("C:/Users/pk24/Documents/Programming/Brain_Phantom/Segmentation.TIF")
-seg = sitk.ReadImage("../Brain_Phantom/Segmentation.TIF")
+seg = sitk.ReadImage("/mnt/d/Brain_Phantom/Segmentation.TIF")
 print(seg.GetSize())
 print(seg.GetOrigin())
 print(seg.GetSpacing())
@@ -267,7 +268,7 @@ def create_images(seg,archive_name,multiples,noise,step_size=10):
 
 #%%
 #Create train and test data separately by adjusting multiples, for example 9 for train and 1 for test
-create_images(seg,"../Brain_Phantom/Patches_no_air_big_GESSE/15GB_0Pnoise_train_val",multiples=2,noise=False)
+create_images(seg,"/mnt/d/Brain_Phantom/Patches_no_air_big_GESSE/15GB_1Pnoise_train_val_new_tf",multiples=2,noise=True)
 #%%
 create_images(seg,"../Brain_Phantom/Patches_no_air_big_GESSE/15GB_0Pnoise_test",multiples=1,noise=False,step_size=15)
 #create_images(seg,"",multiples=9,noise=False)

@@ -1,5 +1,5 @@
 import numpy as np
-import tensorflow as tf
+#import tensorflow as tf
 
 def f_hyper(x):
     '''
@@ -69,6 +69,64 @@ def f_qBOLD_GRE(S0, R2, Y, nu, chi_nb, t ):
         output[:,i] = S0 * np.exp(-R2*t[i] -nu * f_hyper(dw *     t[i] ) )
     return output
 
+def f_qBOLD_GRE_1value(S0, R2, Y, nu, chi_nb, t ):
+    Hct = 0.357
+    # Blood Hb volume fraction
+    psi_Hb = Hct*0.34/1.335
+    # Susceptibility of oxyhemoglobin in ppm
+    chi_oHb = -0.813
+    # Susceptibility of plasma in ppm
+    chi_p = -0.0377
+    # Susceptibility of fully oxygenated blood in ppm
+    chi_ba = psi_Hb*chi_oHb + (1-psi_Hb)*chi_p
+    #print('chi_ba', chi_ba)
+    #CF = gamma *B0
+    gamma = 267.513 #MHz/T
+    B0 = 3 #T
+    delta_chi0 = 4*np.pi*0.273 #in ppm
+    delta_chi0*Hct
+    dw = 1./3 * gamma * B0* (Hct * delta_chi0 * (1-Y) + chi_ba - chi_nb )
+    #print('dw', dw, dw.shape)
+    #FID
+    output = S0 * np.exp(-R2*t -nu * f_hyper(dw *     t ) )
+    return output
+
+def f_qBOLD_GRE_3D(S0, R2, Y, nu, chi_nb, t ):
+    output = np.zeros((S0.shape[0],S0.shape[1],S0.shape[2],len(t)))
+    print('output shape in f_qBOLD_GRE_3D')
+    print(output.shape)
+    for x in range(output.shape[0]):
+        for y in range(output.shape[1]):
+            output[x,y,:,:]= f_qBOLD_GRE(S0[x,y,:],R2[x,y,:],Y[x,y,:],nu[x,y,:],chi_nb[x,y,:],t)
+    return output
+
+def f_qBOLD_GESSE_1value(S0, R2, Y, nu, chi_nb, t,TE = 47./1000 ):
+    output = np.zeros((len(t),1))
+    #TE = 47./1000   #tenth echo
+    Hct = 0.357
+    # Blood Hb volume fraction
+    psi_Hb = Hct*0.34/1.335
+    # Susceptibility of oxyhemoglobin in ppm
+    chi_oHb = -0.813
+    # Susceptibility of plasma in ppm
+    chi_p = -0.0377
+    # Susceptibility of fully oxygenated blood in ppm
+    chi_ba = psi_Hb*chi_oHb + (1-psi_Hb)*chi_p
+    #print('chi_ba', chi_ba)
+    #CF = gamma *B0
+    gamma = 267.513 #MHz/T
+    B0 = 3 #T
+    delta_chi0 = 4*np.pi*0.273 #in ppm
+    delta_chi0*Hct
+    dw = 1./3 * gamma * B0* (Hct * delta_chi0 * (1-Y) + chi_ba - chi_nb )
+    #print('dw', dw, dw.shape)
+    #SE rise
+    for i in range(0,10):
+        output[i,0] = S0 * np.exp(-R2*t[i] -nu * f_hyper(dw * (TE-t[i]) ) )
+    #SE fall
+    for i in range(10,len(t)):
+        output[i,0] = S0 * np.exp(-R2*t[i] -nu * f_hyper(dw * (t[i]-TE) ) )
+    return output
 
 def f_qBOLD_GESSE(S0, R2, Y, nu, chi_nb, t,TE = 47./1000 ):
     output = np.zeros((len(S0),len(t)))
