@@ -32,7 +32,7 @@ import h5py
 
 #np.savez("../Brain_Phantom/Patches/NumpyArchiv",Params_training=Params_training,Params_test=Params_test,qBOLD_training=qBOLD_training,qBOLD_test=qBOLD_test,QSM_training=QSM_training,QSM_test=QSM_test)
 
-Dataset_train=np.load("../Brain_Phantom/Patches_no_air_big_GESSE/15GB_1Pnoise_train_val.npz")
+Dataset_train=np.load("/mnt/d/Brain_Phantom/Patches_no_air_big_GESSE/15GB_1Pnoise_train_val_new_tf.npz")
 S0_train=Dataset_train['S0']
 S0_train.shape
 R2_train=Dataset_train['R2']
@@ -44,20 +44,9 @@ QSM_training=Dataset_train['QSM']
 
 
 training_list = [S0_train,R2_train,Y_train,nu_train,chi_nb_train]
+
+
 #%%
-Dataset_test=np.load("../Brain_Phantom/Patches_no_air_big_GESSE/15GB_1Pnoise_test.npz")
-S0_test=Dataset_test['S0']
-S0_test.shape
-R2_test=Dataset_test['R2']
-Y_test=Dataset_test['Y']
-nu_test=Dataset_test['nu']
-chi_nb_test=Dataset_test['chi_nb']
-qBOLD_test=Dataset_test['qBOLD']
-QSM_test=Dataset_test['QSM']
-
-test_list = [S0_test,R2_test,Y_test,nu_test,chi_nb_test]
-
-
 version = "no_air_1Pnoise_15GB_GESSE/"
 
 # %% Network
@@ -140,11 +129,11 @@ drop_qBOLD_4 = layers.SpatialDropout3D(0.1)(norm_qBOLD_4)
 
 model_qBOLD = keras.Model(inputs=input_qBOLD, outputs = drop_qBOLD_4, name="qBOLD model")
 model_qBOLD.summary()
-keras.utils.plot_model(model_qBOLD, show_shapes=True)
+#keras.utils.plot_model(model_qBOLD, show_shapes=True)
 
 #%%
 input_QSM = keras.Input(shape=(None,None,1,1), name = 'Input_QSM')
-conv_QSM_1 = keras.layers.Conv3D(n/2,
+conv_QSM_1 = keras.layers.Conv3D(8,
                   kernel_size=3,
                   strides=(1),
                   padding='same',
@@ -178,7 +167,7 @@ drop_QSM_3 = layers.SpatialDropout3D(0.1)(norm_QSM_3)
 
 model_QSM = keras.Model(inputs=input_QSM, outputs = drop_QSM_3, name="QSM model")
 model_QSM.summary()
-keras.utils.plot_model(model_QSM, show_shapes=True)
+#keras.utils.plot_model(model_QSM, show_shapes=True)
 #%%
 concat_QQ_1 = layers.Concatenate(name = 'concat_QQ_1')([model_qBOLD.output,model_QSM.output])
 conv_QQ_1 = layers.Conv3D(2*n,3,padding='same',activation="tanh",name = 'conv_QQ_1')(concat_QQ_1)
@@ -204,7 +193,7 @@ conv_chinb = layers.Conv3D(1,3,padding='same',activation="linear", name = 'chi_n
 
 model_params = keras.Model(inputs=[input_qBOLD,input_QSM],outputs=[conv_S0,conv_R2,conv_Y,conv_nu,conv_chinb],name="Params_model")
 model_params.summary()
-keras.utils.plot_model(model_params, show_shapes=True)
+#keras.utils.plot_model(model_params, show_shapes=True)
 
 
 
@@ -252,11 +241,26 @@ my_callbacks = [
 history_params = model_params.fit([qBOLD_training,QSM_training], training_list , batch_size=100, epochs=100, validation_split=0.1/0.9, callbacks=my_callbacks)
 #history_params = model_params.fit(training_Params_data, epochs=100,validation_data=val_Params_data, callbacks=my_callbacks)
 #%%
-model_params.save("models/"+version+ "Model_2D_image_GESSE_3D_conv_norm_drop_n16_all3D.h5")
-np.save('models/'+version+'history_Model_2D_image_GESSE_3D_conv_norm_drop_n16_all3D.npy',history_params.history)
-#model_params = keras.models.load_model("models/"+version+ "Model_2D_image_GESSE_3D_conv_norm_drop_n16.h5")
-#model_params.summary()
-#keras.utils.plot_model(model_params, show_shapes=True)
+model_params.save("models/"+version+ "Model_2D_image_GESSE_3D_conv_norm_drop_n16_all3D_newtf.h5")
+np.save('models/'+version+'history_Model_2D_image_GESSE_3D_conv_norm_drop_n16_all3D_newtf.npy',history_params.history)
+
+#%%
+model_params = keras.models.load_model("models/"+version+ "Model_2D_image_GESSE_3D_conv_norm_drop_n16_all3d.h5")
+model_params.summary()
+keras.utils.plot_model(model_params, show_shapes=True)
+
+#%%
+Dataset_test=np.load("/mnt/d/Brain_Phantom/Patches_no_air_big_GESSE/15GB_1Pnoise_test.npz")
+S0_test=Dataset_test['S0']
+S0_test.shape
+R2_test=Dataset_test['R2']
+Y_test=Dataset_test['Y']
+nu_test=Dataset_test['nu']
+chi_nb_test=Dataset_test['chi_nb']
+qBOLD_test=Dataset_test['qBOLD']
+QSM_test=Dataset_test['QSM']
+
+test_list = [S0_test,R2_test,Y_test,nu_test,chi_nb_test]
 
 #%%
 
