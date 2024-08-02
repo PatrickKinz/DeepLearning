@@ -7,8 +7,11 @@ physical_devices = tf.config.experimental.list_physical_devices('GPU')
 config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
 from tensorflow import keras
 from tensorflow.keras import layers
-
 #tf.debugging.enable_check_numerics() incredibly slow since check runs on cpu
+
+#import os
+#os.environ["XLA_FLAGS"]="--xla_gpu_strict_conv_algorithm_picker=false"
+#os.environ["XLA_FLAGS"]="--xla_gpu_autotune_level=0"
 
 
 import numpy as np
@@ -32,19 +35,27 @@ import h5py
 
 #np.savez("../Brain_Phantom/Patches/NumpyArchiv",Params_training=Params_training,Params_test=Params_test,qBOLD_training=qBOLD_training,qBOLD_test=qBOLD_test,QSM_training=QSM_training,QSM_test=QSM_test)
 
-Dataset_train=np.load("/mnt/d/Brain_Phantom/Patches_no_air_big_GESSE/15GB_1Pnoise_train_val_new_tf.npz")
-S0_train=Dataset_train['S0']
-S0_train.shape
-R2_train=Dataset_train['R2']
-Y_train=Dataset_train['Y']
-nu_train=Dataset_train['nu']
-chi_nb_train=Dataset_train['chi_nb']
-qBOLD_training=Dataset_train['qBOLD']
-QSM_training=Dataset_train['QSM']
+#Dataset_train=np.load("../Brain_Phantom/Patches_no_air_big_GESSE/6GB_1Pnoise_train_val_new_tf.npz")
+Dataset_train=np.load("../Brain_Phantom/Patches_no_air_big_GESSE/6GB_1Pnoise_train_val_new_tf.npz")
+size_limit = 30000
+S0_train=Dataset_train['S0'][0:size_limit,:,:,:]
+print(S0_train.shape) #42441,30,30,1
+R2_train=Dataset_train['R2'][0:size_limit,:,:,:]
+Y_train=Dataset_train['Y'][0:size_limit,:,:,:]
+nu_train=Dataset_train['nu'][0:size_limit,:,:,:]
+chi_nb_train=Dataset_train['chi_nb'][0:size_limit,:,:,:]
+qBOLD_training=Dataset_train['qBOLD'][0:size_limit,:,:,:]
+QSM_training=Dataset_train['QSM'][0:size_limit,:,:,:]
 
-
-training_list = [S0_train,R2_train,Y_train,nu_train,chi_nb_train]
-
+#10% validation = 42441*0.9 = 38197
+#1% validation = 42441*0.99 = 42017 = 42000
+val_border = 27000
+training_list = [S0_train[0:val_border,:,:,:],R2_train[0:val_border,:,:,:],Y_train[0:val_border,:,:,:],nu_train[0:val_border,:,:,:],chi_nb_train[0:val_border,:,:,:]]
+validation_list =[S0_train[val_border:-1,:,:,:],R2_train[val_border:-1,:,:,:],Y_train[val_border:-1,:,:,:],nu_train[val_border:-1,:,:,:],chi_nb_train[val_border:-1,:,:,:]]
+input_train_list = [qBOLD_training[0:val_border,:,:,:],QSM_training[0:val_border,:,:,:]]
+input_val_list = [qBOLD_training[val_border:-1,:,:,:],QSM_training[val_border:-1,:,:,:]]
+#try using this
+#tf.convert_to_tensor
 
 #%%
 version = "no_air_1Pnoise_15GB_GESSE/"
@@ -129,7 +140,8 @@ drop_qBOLD_4 = layers.SpatialDropout3D(0.1)(norm_qBOLD_4)
 
 model_qBOLD = keras.Model(inputs=input_qBOLD, outputs = drop_qBOLD_4, name="qBOLD model")
 model_qBOLD.summary()
-#keras.utils.plot_model(model_qBOLD, show_shapes=True)
+#%%
+keras.utils.plot_model(model_qBOLD, show_shapes=True)
 
 #%%
 input_QSM = keras.Input(shape=(None,None,1,1), name = 'Input_QSM')
@@ -167,7 +179,7 @@ drop_QSM_3 = layers.SpatialDropout3D(0.1)(norm_QSM_3)
 
 model_QSM = keras.Model(inputs=input_QSM, outputs = drop_QSM_3, name="QSM model")
 model_QSM.summary()
-#keras.utils.plot_model(model_QSM, show_shapes=True)
+keras.utils.plot_model(model_QSM, show_shapes=True)
 #%%
 concat_QQ_1 = layers.Concatenate(name = 'concat_QQ_1')([model_qBOLD.output,model_QSM.output])
 conv_QQ_1 = layers.Conv3D(2*n,3,padding='same',activation="tanh",name = 'conv_QQ_1')(concat_QQ_1)
@@ -193,7 +205,7 @@ conv_chinb = layers.Conv3D(1,3,padding='same',activation="linear", name = 'chi_n
 
 model_params = keras.Model(inputs=[input_qBOLD,input_QSM],outputs=[conv_S0,conv_R2,conv_Y,conv_nu,conv_chinb],name="Params_model")
 model_params.summary()
-#keras.utils.plot_model(model_params, show_shapes=True)
+keras.utils.plot_model(model_params, show_shapes=True)
 
 
 
@@ -221,7 +233,7 @@ lossWeights = {
 }
 model_params.compile(
     loss=losses,
-    loss_weights=lossWeights,
+    #loss_weights=lossWeights,
     optimizer=opt,
     #metrics=[tf.keras.metrics.MeanAbsolutePercentageError()],
     #metrics=[tf.keras.metrics.MeanSquaredError()],
@@ -230,7 +242,7 @@ model_params.compile(
 
 #%%
 my_callbacks = [
-    tf.keras.callbacks.EarlyStopping(patience=3),
+    #tf.keras.callbacks.EarlyStopping(patience=3),
     #tf.keras.callbacks.ModelCheckpoint(filepath='model.{epoch:02d}-{val_loss:.2f}.h5'),
     #tf.keras.callbacks.TensorBoard(log_dir='./logs/2021_07_15-1330')
 ]
@@ -238,13 +250,15 @@ my_callbacks = [
 
 
 
-history_params = model_params.fit([qBOLD_training,QSM_training], training_list , batch_size=100, epochs=100, validation_split=0.1/0.9, callbacks=my_callbacks)
+history_params = model_params.fit(input_train_list, training_list , batch_size=100, epochs=20, validation_data=(input_val_list,validation_list), callbacks=my_callbacks)
+#history_params = model_params.fit([qBOLD_training,QSM_training], training_list , batch_size=5, epochs=20, validation_split=0.1, callbacks=my_callbacks)
 #history_params = model_params.fit(training_Params_data, epochs=100,validation_data=val_Params_data, callbacks=my_callbacks)
 #%%
-model_params.save("models/"+version+ "Model_2D_image_GESSE_3D_conv_norm_drop_n16_all3D_newtf.h5")
-np.save('models/'+version+'history_Model_2D_image_GESSE_3D_conv_norm_drop_n16_all3D_newtf.npy',history_params.history)
+model_params.save("models/"+version+ "Model_2D_image_GESSE_3D_conv_norm_drop_n16_all3D_newtf30000.keras")
+np.save('models/'+version+'history_Model_2D_image_GESSE_3D_conv_norm_drop_n16_all3D_newtf30000.npy',history_params.history)
 
 #%%
+"""
 model_params = keras.models.load_model("models/"+version+ "Model_2D_image_GESSE_3D_conv_norm_drop_n16_all3d.h5")
 model_params.summary()
 keras.utils.plot_model(model_params, show_shapes=True)
@@ -309,5 +323,5 @@ QQplt.check_full_confusion_matrix_normed(label_transformed,prediction_transforme
 
 #QQplt.check_correlation_coef(label_transformed,prediction_transformed,'confusion_test_GESSE_1Pnoise_correlation_coeffs_3d_drop_norm_n16')
 
+"""
 
-# %%

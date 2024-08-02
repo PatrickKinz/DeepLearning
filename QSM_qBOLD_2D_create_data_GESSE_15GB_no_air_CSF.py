@@ -16,7 +16,7 @@ Function to test creating 2D data of Signal with S0, T2 and T2S
 """
 
 #seg = sitk.ReadImage("C:/Users/pk24/Documents/Programming/Brain_Phantom/Segmentation.TIF")
-seg = sitk.ReadImage("/mnt/d/Brain_Phantom/Segmentation.TIF")
+seg = sitk.ReadImage("../Brain_Phantom/Segmentation.TIF")
 print(seg.GetSize())
 print(seg.GetOrigin())
 print(seg.GetSpacing())
@@ -113,20 +113,21 @@ def create_whole_brain(M):
         sitk.WriteImage(brainQSM,"C:/Users/pk24/Documents/Programming/Brain_Phantom/BrainQSM_test_comp.TIF" ,useCompression=True)
          """
 #%%
-nda_test = sitk.GetArrayViewFromImage(brainSignal)
-nda_test.shape
-plt.imshow(nda_test[70,:,30:230,5])
-plt.colorbar()
-fig=plt.figure()
-for i in range(N_tissues):
-    plt.plot(t*1000,signal[i,:],'.--',label=i)
-fig.legend(loc=7)
-fig=plt.figure()
-for i in range(N_tissues):
-    plt.plot(t*1000,signal[i,:]-S0[i]*np.exp(-R2[i]*t),'.--',label=i)
-fig.legend(loc=7)
-Y
-nu
+
+#nda_test = sitk.GetArrayViewFromImage(brainSignal)
+#nda_test.shape
+#plt.imshow(nda_test[70,:,30:230,5])
+#plt.colorbar()
+#fig=plt.figure()
+#for i in range(N_tissues):
+#    plt.plot(t*1000,signal[i,:],'.--',label=i)
+#fig.legend(loc=7)
+#fig=plt.figure()
+#for i in range(N_tissues):
+#    plt.plot(t*1000,signal[i,:]-S0[i]*np.exp(-R2[i]*t),'.--',label=i)
+#fig.legend(loc=7)
+#Y
+#nu
 
 
 
@@ -268,9 +269,9 @@ def create_images(seg,archive_name,multiples,noise,step_size=10):
 
 #%%
 #Create train and test data separately by adjusting multiples, for example 9 for train and 1 for test
-create_images(seg,"/mnt/d/Brain_Phantom/Patches_no_air_big_GESSE/15GB_1Pnoise_train_val_new_tf",multiples=2,noise=True)
+create_images(seg,"../Brain_Phantom/Patches_no_air_big_GESSE/6GB_1Pnoise_train_val_new_tf",multiples=1,noise=True)
 #%%
-create_images(seg,"../Brain_Phantom/Patches_no_air_big_GESSE/15GB_0Pnoise_test",multiples=1,noise=False,step_size=15)
+create_images(seg,"../Brain_Phantom/Patches_no_air_big_GESSE/15GB_1Pnoise_test",multiples=1,noise=True,step_size=15)
 #create_images(seg,"",multiples=9,noise=False)
 #create_images(seg,"",multiples=1,noise=False)
 
