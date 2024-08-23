@@ -9,7 +9,7 @@ from tensorflow import keras
 from tensorflow.keras import layers
 #tf.debugging.enable_check_numerics() incredibly slow since check runs on cpu
 
-#import os
+import os
 #os.environ["XLA_FLAGS"]="--xla_gpu_strict_conv_algorithm_picker=false"
 #os.environ["XLA_FLAGS"]="--xla_gpu_autotune_level=0"
 
@@ -21,6 +21,9 @@ from tqdm import tqdm  #for progress bar
 import QSM_qBOLD_2D_plotting_functions as QQplt
 import QSM_and_qBOLD_functions as QQfunc
 import h5py
+
+import ModifiedMultiInputNumpyArrayGenerator as myGenerator
+
 #from QSM_qBOLD_2D_load_and_prepare_data import load_and_prepare_data
 
 
@@ -36,36 +39,68 @@ import h5py
 #np.savez("../Brain_Phantom/Patches/NumpyArchiv",Params_training=Params_training,Params_test=Params_test,qBOLD_training=qBOLD_training,qBOLD_test=qBOLD_test,QSM_training=QSM_training,QSM_test=QSM_test)
 
 #Dataset_train=np.load("../Brain_Phantom/Patches_no_air_big_GESSE/6GB_1Pnoise_train_val_new_tf.npz")
-Dataset_train=np.load("../Brain_Phantom/Patches_no_air_big_GESSE/6GB_1Pnoise_train_val_new_tf.npz")
-size_limit = 30000
-S0_train=Dataset_train['S0'][0:size_limit,:,:,:]
-print(S0_train.shape) #42441,30,30,1
-R2_train=Dataset_train['R2'][0:size_limit,:,:,:]
-Y_train=Dataset_train['Y'][0:size_limit,:,:,:]
-nu_train=Dataset_train['nu'][0:size_limit,:,:,:]
-chi_nb_train=Dataset_train['chi_nb'][0:size_limit,:,:,:]
-qBOLD_training=Dataset_train['qBOLD'][0:size_limit,:,:,:]
-QSM_training=Dataset_train['QSM'][0:size_limit,:,:,:]
+#Dataset_train=np.load("../Brain_Phantom/Patches_no_air_big_GESSE/6GB_1Pnoise_train_val_new_tf.npz")
+#size_limit = 30000
+#S0_train=tf.data.Dataset.from_tensor_slices(Dataset_train['S0'][0:size_limit,:,:,:])
+#R2_train=tf.data.Dataset.from_tensor_slices(Dataset_train['R2'][0:size_limit,:,:,:])
+#Y_train=tf.data.Dataset.from_tensor_slices(Dataset_train['Y'][0:size_limit,:,:,:])
+#nu_train=tf.data.Dataset.from_tensor_slices(Dataset_train['nu'][0:size_limit,:,:,:])
+#chi_nb_train=tf.data.Dataset.from_tensor_slices(Dataset_train['chi_nb'][0:size_limit,:,:,:])
+#qBOLD_training=tf.data.Dataset.from_tensor_slices(Dataset_train['qBOLD'][0:size_limit,:,:,:])
+#QSM_training=tf.data.Dataset.from_tensor_slices(Dataset_train['QSM'][0:size_limit,:,:,:])
 
 #10% validation = 42441*0.9 = 38197
 #1% validation = 42441*0.99 = 42017 = 42000
-val_border = 27000
-training_list = [S0_train[0:val_border,:,:,:],R2_train[0:val_border,:,:,:],Y_train[0:val_border,:,:,:],nu_train[0:val_border,:,:,:],chi_nb_train[0:val_border,:,:,:]]
-validation_list =[S0_train[val_border:-1,:,:,:],R2_train[val_border:-1,:,:,:],Y_train[val_border:-1,:,:,:],nu_train[val_border:-1,:,:,:],chi_nb_train[val_border:-1,:,:,:]]
-input_train_list = [qBOLD_training[0:val_border,:,:,:],QSM_training[0:val_border,:,:,:]]
-input_val_list = [qBOLD_training[val_border:-1,:,:,:],QSM_training[val_border:-1,:,:,:]]
-#try using this
-#tf.convert_to_tensor
+#val_border = 27000
+#training_list = [S0_train[0:val_border,:,:,:],R2_train[0:val_border,:,:,:],Y_train[0:val_border,:,:,:],nu_train[0:val_border,:,:,:],chi_nb_train[0:val_border,:,:,:]]
+#validation_list =[S0_train[val_border:-1,:,:,:],R2_train[val_border:-1,:,:,:],Y_train[val_border:-1,:,:,:],nu_train[val_border:-1,:,:,:],chi_nb_train[val_border:-1,:,:,:]]
+#input_train_list = [qBOLD_training[0:val_border,:,:,:],QSM_training[0:val_border,:,:,:]]
+#input_val_list = [qBOLD_training[val_border:-1,:,:,:],QSM_training[val_border:-1,:,:,:]]
+
+#%%
+# List of .npz files
+directory = "../Brain_Phantom/Patches_no_air_big_GESSE_1pNoise_single_files_train_val/"
+npz_files = [os.path.join(directory, f) for f in os.listdir(directory) if f.endswith('.npz')]
+
+
+# Shuffle the list of files
+np.random.shuffle(npz_files)
+
+# Define the split ratio
+split_ratio = 0.8  # 80% training, 20% validation
+
+# Calculate the split index
+split_index = int(len(npz_files) * split_ratio)
+
+# Split the files into training and validation sets
+train_files = npz_files[:split_index]
+val_files = npz_files[split_index:]
+
+# Parameters
+batch_size = 100
+input_keys = ['qBOLD','QSM']  # Replace with your actual input keys
+label_keys = ['S0', 'R2','Y','nu','chi_nb']  # Replace with your actual label keys
+
+
+
+
+# Instantiate the generator
+train_generator = myGenerator.MultiInputNumpyArrayGenerator(train_files, batch_size, input_keys, label_keys)
+val_generator = myGenerator.MultiInputNumpyArrayGenerator(val_files, batch_size, input_keys, label_keys)
+
+# Example of using with a model
+# model.fit(train_generator, epochs=10)
+
+
 
 #%%
 version = "no_air_1Pnoise_15GB_GESSE/"
 
 # %% Network
 
-input_qBOLD = keras.Input(shape=(None,None,32,1), name = 'Input_qBOLD')
+input_qBOLD = keras.Input(shape=(None,None,32,1), name = 'qBOLD')
 
-input_qBOLD.shape
-input_qBOLD.dtype
+
 
 n=16
 pad_qBOLD_1 = keras.layers.ZeroPadding3D(padding=(1,1,0))(input_qBOLD)
@@ -138,13 +173,12 @@ drop_qBOLD_4 = layers.SpatialDropout3D(0.1)(norm_qBOLD_4)
 #reshape_qBOLD = keras.layers.Reshape(newdim) (drop_qBOLD_4) #should remove dimensions of size 1
 #reshape_qBOLD = keras.layers.Reshape((30,30,128))(drop_qBOLD_4)
 
-model_qBOLD = keras.Model(inputs=input_qBOLD, outputs = drop_qBOLD_4, name="qBOLD model")
-model_qBOLD.summary()
-#%%
-keras.utils.plot_model(model_qBOLD, show_shapes=True)
+#model_qBOLD = keras.Model(inputs=input_qBOLD, outputs = drop_qBOLD_4, name="qBOLD model")
+#model_qBOLD.summary()
 
-#%%
-input_QSM = keras.Input(shape=(None,None,1,1), name = 'Input_QSM')
+#keras.utils.plot_model(model_qBOLD, show_shapes=True)
+
+input_QSM = keras.Input(shape=(None,None,1,1), name = 'QSM')
 conv_QSM_1 = keras.layers.Conv3D(8,
                   kernel_size=3,
                   strides=(1),
@@ -177,12 +211,13 @@ drop_QSM_3 = layers.SpatialDropout3D(0.1)(norm_QSM_3)
 
 
 
-model_QSM = keras.Model(inputs=input_QSM, outputs = drop_QSM_3, name="QSM model")
-model_QSM.summary()
-keras.utils.plot_model(model_QSM, show_shapes=True)
-#%%
-concat_QQ_1 = layers.Concatenate(name = 'concat_QQ_1')([model_qBOLD.output,model_QSM.output])
+#model_QSM = keras.Model(inputs=input_QSM, outputs = drop_QSM_3, name="QSM model")
+#model_QSM.summary()
+#keras.utils.plot_model(model_QSM, show_shapes=True)
+
+concat_QQ_1 = layers.Concatenate(name = 'concat_QQ_1')([drop_qBOLD_4,drop_QSM_3])
 conv_QQ_1 = layers.Conv3D(2*n,3,padding='same',activation="tanh",name = 'conv_QQ_1')(concat_QQ_1)
+#conv_QQ_1 = layers.Conv3D(2*n,3,padding='same',activation="tanh",name = 'conv_QQ_1')(drop_qBOLD_4)
 norm_QQ_1 = layers.BatchNormalization()(conv_QQ_1)
 drop_QQ_1 = layers.SpatialDropout3D(0.1)(norm_QQ_1)
 
@@ -218,11 +253,11 @@ opt = keras.optimizers.Adam(0.001, clipnorm=1.)
 loss=keras.losses.MeanAbsoluteError()
 #loss=tf.keras.losses.Huber()
 losses = {
-    "S0":loss,
-    "R2":loss,
-    "Y":loss,
-    "nu":loss,
-    "chi_nb":loss,
+    "S0":keras.losses.MeanAbsoluteError(),
+    "R2":keras.losses.MeanAbsoluteError(),
+    "Y":keras.losses.MeanAbsoluteError(),
+    "nu":keras.losses.MeanAbsoluteError(),
+    "chi_nb":keras.losses.MeanAbsoluteError(),
 }
 lossWeights = {
     "S0":1.0,
@@ -233,7 +268,7 @@ lossWeights = {
 }
 model_params.compile(
     loss=losses,
-    #loss_weights=lossWeights,
+    loss_weights=lossWeights,
     optimizer=opt,
     #metrics=[tf.keras.metrics.MeanAbsolutePercentageError()],
     #metrics=[tf.keras.metrics.MeanSquaredError()],
@@ -242,20 +277,20 @@ model_params.compile(
 
 #%%
 my_callbacks = [
-    #tf.keras.callbacks.EarlyStopping(patience=3),
+    tf.keras.callbacks.EarlyStopping(patience=3),
     #tf.keras.callbacks.ModelCheckpoint(filepath='model.{epoch:02d}-{val_loss:.2f}.h5'),
     #tf.keras.callbacks.TensorBoard(log_dir='./logs/2021_07_15-1330')
 ]
 
 
 
-
-history_params = model_params.fit(input_train_list, training_list , batch_size=100, epochs=20, validation_data=(input_val_list,validation_list), callbacks=my_callbacks)
+# model.fit(train_generator, epochs=10)
+history_params = model_params.fit(train_generator , epochs=20, validation_data=val_generator, callbacks=my_callbacks)
 #history_params = model_params.fit([qBOLD_training,QSM_training], training_list , batch_size=5, epochs=20, validation_split=0.1, callbacks=my_callbacks)
 #history_params = model_params.fit(training_Params_data, epochs=100,validation_data=val_Params_data, callbacks=my_callbacks)
 #%%
-model_params.save("models/"+version+ "Model_2D_image_GESSE_3D_conv_norm_drop_n16_all3D_newtf30000.keras")
-np.save('models/'+version+'history_Model_2D_image_GESSE_3D_conv_norm_drop_n16_all3D_newtf30000.npy',history_params.history)
+model_params.save("models/"+version+ "Model_2D_image_GESSE_3D_conv_norm_drop_n16_all3D_onlyqBOLD.keras")
+np.save('models/'+version+'history_Model_2D_image_GESSE_3D_conv_norm_drop_n16_all3D_onlyqBOLD.npy',history_params.history)
 
 #%%
 

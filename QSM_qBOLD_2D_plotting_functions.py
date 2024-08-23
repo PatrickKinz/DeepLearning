@@ -731,7 +731,7 @@ def correlation_coef(x,y):
     return SPxy/np.sqrt(SQx*SQy)
 
 def check_correlation_coef(label_transformed,prediction_transformed,filename):
-#%%
+
 #label_transformed_array =np.array(label_transformed)
 #label_transformed_array.shape
 #prediction_transformed_array = np.array(prediction_transformed)
